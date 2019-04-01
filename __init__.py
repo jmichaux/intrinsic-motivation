@@ -15,28 +15,28 @@ for reward_type in ['dense', 'sparse', 'very_sparse']:
     # Fetch
     register(
         id='FetchSlide{}-v2'.format(suffix),
-        entry_point='gym_robotics.envs.mujoco:FetchSlideEnv',
+        entry_point='envs:FetchSlideEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchPickAndPlace{}-v2'.format(suffix),
-        entry_point='gym_robotics.envs.mujoco:FetchPickAndPlaceEnv',
+        entry_point='envs:FetchPickAndPlaceEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchReach{}-v2'.format(suffix),
-        entry_point='gym_robotics.envs.mujoco:FetchReachEnv',
+        entry_point='envs:FetchReachEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchPush{}-v2'.format(suffix),
-        entry_point='gym_robotics.envs.mujoco:FetchPushEnv',
+        entry_point='envs:FetchPushEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
