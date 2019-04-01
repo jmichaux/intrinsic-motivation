@@ -1,7 +1,7 @@
 import numpy as np
 
 import gym
-import gym_robotics
+
 
 def run_episode(env_id=None, env=None, num_episodes=1, max_steps=100000, render=False):
     if env is None:
