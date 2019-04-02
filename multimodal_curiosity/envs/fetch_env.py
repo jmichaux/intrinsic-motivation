@@ -119,10 +119,45 @@ class FetchEnv(robot_env.RobotEnv):
             object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
         ])
 
+        '''Begin Testing'''
+
+        """
+        TESTING THE CAMERA
+        Target:
+            target
+            self.sim.model.site_pos[0]
+        Goal:
+            self.goal
+            self.sim.data.body_xpos[0]
+        Gripper:
+            self.sim.data.body_xpos[1]
+            self.sim.data.site_xpos[1]
+
+        Target ID: 0
+        Gripper ID: 19
+        """
+
+        image, depth = self.sim.render(width=640, height=480, camera_name='external_camera_0', depth=True)
+        site_id = self.sim.model.site_name2id('target0')
+        body_id = self.sim.model.body_name2id('robot0:gripper_link')
+        lookat = self.sim.data.body_xpos[body_id]
+        # target = self.sim.data.body_xpos[site_id]
+        target = self.sim.model.site_pos[site_id]
+
+        print('Target ID: {}\t Gripper ID: {}\t'.format(site_id, body_id))
+        print('Target: {}\t Goal: {}\t Gripper: {}'.format(target, self.goal.copy(), lookat))
+        print('Target: {}\t Goal: {}\t Gripper: {}'.format(self.sim.data.site_xpos[2], self.sim.data.site_xpos[0], self.sim.data.site_xpos[1]))
+        print('Target: {}\t Goal: {}\t Gripper: {}'.format(self.sim.model.site_pos[0], self.sim.model.site_pos[2], self.sim.model.site_pos[2]))
+        print('=========================================================================')
+
+        '''End testing'''
+
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
+            'image': image[::-1, :, :].copy(),
+            'depth': depth[::-1].copy()
         }
 
     def _viewer_setup(self):
@@ -133,6 +168,7 @@ class FetchEnv(robot_env.RobotEnv):
         self.viewer.cam.distance = 2.5
         self.viewer.cam.azimuth = 132.
         self.viewer.cam.elevation = -14.
+
 
     def _render_callback(self):
         # Visualize target.
