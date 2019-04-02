@@ -3,6 +3,8 @@ import numpy as np
 import gym
 import multimodal_curiosity
 
+import matplotlib.pyplot as plt
+plt.ion()
 def run_episode(env_id=None, env=None, num_episodes=1, max_steps=100000, render=False):
     if env is None:
         env = gym.make(env_id)
@@ -16,16 +18,15 @@ def run_episode(env_id=None, env=None, num_episodes=1, max_steps=100000, render=
             action += np.array([0., -1.0, .0, 0.0])
             obs, reward, done, info = env.step(action)
             total_reward += reward
-            # print(obs['achieved_goal'])
-            # print(obs['observation'])
             if done:
                 break
         print('{}: Finished episode {} in {} steps with reward {}'.format(env_id, episode, step, total_reward))
     env.close()
-    return
+    return obs
 
 
 if __name__ == '__main__':
     env_id = 'FetchPickAndPlaceDense-v2'
     env = gym.make(env_id)
-    run_episode(env_id, num_episodes=1, render=True)
+    obs = run_episode(env_id, num_episodes=1, render=False)
+    plt.imshow(obs['image'])
