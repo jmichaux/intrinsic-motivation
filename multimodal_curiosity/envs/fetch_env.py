@@ -119,45 +119,38 @@ class FetchEnv(robot_env.RobotEnv):
             object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
         ])
 
-        '''Begin Testing'''
+        # RGB-D
+        im0, d0 = self.sim.render(width=640, height=480, camera_name='external_camera_0', depth=True)
+        im1, d1 = self.sim.render(width=320, height=240, camera_name='external_camera_0', depth=True)
 
-        """
-        TESTING THE CAMERA
-        Target:
-            target
-            self.sim.model.site_pos[0]
-        Goal:
-            self.goal
-            self.sim.data.body_xpos[0]
-        Gripper:
-            self.sim.data.body_xpos[1]
-            self.sim.data.site_xpos[1]
+        # assuming the target site has a name with prefix "target". you can find it out in sim.
+        # name = 'target0'
+        target_geom_ids = [self.sim.model.geom_name2id(name)
+                           for name in self.sim.model.geom_names if name.startswith('target')]
+        target_mat_ids = [self.sim.model.geom_matid[gid] for gid in target_geom_ids]
+        target_site_ids = [self.sim.model.site_name2id(name)
+                           for name in self.sim.model.site_names if name.startswith('target')]
 
-        Target ID: 0
-        Gripper ID: 19
-        """
+        self.sim.model.mat_rgba[target_mat_ids, -1] = 0
+        self.sim.model.geom_rgba[target_geom_ids, -1] = 0
+        self.sim.model.site_rgba[target_site_ids, -1] = 0
 
-        image, depth = self.sim.render(width=640, height=480, camera_name='external_camera_0', depth=True)
-        site_id = self.sim.model.site_name2id('target0')
-        body_id = self.sim.model.body_name2id('robot0:gripper_link')
-        lookat = self.sim.data.body_xpos[body_id]
-        # target = self.sim.data.body_xpos[site_id]
-        target = self.sim.model.site_pos[site_id]
-
-        print('Target ID: {}\t Gripper ID: {}\t'.format(site_id, body_id))
-        print('Target: {}\t Goal: {}\t Gripper: {}'.format(target, self.goal.copy(), lookat))
-        print('Target: {}\t Goal: {}\t Gripper: {}'.format(self.sim.data.site_xpos[2], self.sim.data.site_xpos[0], self.sim.data.site_xpos[1]))
-        print('Target: {}\t Goal: {}\t Gripper: {}'.format(self.sim.model.site_pos[0], self.sim.model.site_pos[2], self.sim.model.site_pos[2]))
-        print('=========================================================================')
-
-        '''End testing'''
+        # contacts
+        # for i in range(self.sim.data.ncon):
+        #     contact = sim.data.contact[i]
+        #     print('contact', i)
+        #     # print('dist', contact.dist)
+        #     print('geom1', contact.geom1, sim.model.geom_id2name(contact.geom1))
+        #     print('geom2', contact.geom2, sim.model.geom_id2name(contact.geom2))
 
         return {
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
-            'image': image[::-1, :, :].copy(),
-            'depth': depth[::-1].copy()
+            'image0': im0[::-1, :, :].copy(),
+            'depth0': d0[::-1].copy(),
+            'image1': im1[::-1, :, :].copy(),
+            'depth1': d1[::-1].copy(),
         }
 
     def _viewer_setup(self):
