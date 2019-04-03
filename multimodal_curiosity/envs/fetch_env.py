@@ -120,8 +120,8 @@ class FetchEnv(robot_env.RobotEnv):
         ])
 
         # RGB-D
-        im0, d0 = self.sim.render(width=640, height=480, camera_name='external_camera_0', depth=True)
-        im1, d1 = self.sim.render(width=320, height=240, camera_name='external_camera_0', depth=True)
+        im1, d2 = self.sim.render(width=320, height=240, camera_name='external_camera_0', depth=True)
+        im2, d1 = self.sim.render(width=320, height=240, camera_name='external_camera_1', depth=True)
 
         # assuming the target site has a name with prefix "target". you can find it out in sim.
         # name = 'target0'
@@ -147,10 +147,10 @@ class FetchEnv(robot_env.RobotEnv):
             'observation': obs.copy(),
             'achieved_goal': achieved_goal.copy(),
             'desired_goal': self.goal.copy(),
-            'image0': im0[::-1, :, :].copy(),
-            'depth0': d0[::-1].copy(),
-            'image1': im1[::-1, :, :].copy(),
-            'depth1': d1[::-1].copy(),
+            'image1': im1.copy(),
+            'image2': im2.copy(),
+            'depth1': d1.copy(),
+            'depth2': d2.copy(),
             'contact': np.array([0., 0., 0.]), #TODO: Replace with real contact forces
         }
 
