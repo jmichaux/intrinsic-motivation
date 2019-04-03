@@ -9,7 +9,7 @@
  * [OpenAI baselines](https://github.com/openai/baselines)
 
  # Project Milestones
- - [ ] Modify gym environments to return images and depth map
+ - [ ] Modify gym environments
  	- [x] Modify gym environments to return images and depth map
  	- [ ] Modify orientation of additional cameras
  	- [ ] Return contact forces for the gripper
