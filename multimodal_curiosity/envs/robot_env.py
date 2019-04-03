@@ -43,6 +43,9 @@ class RobotEnv(gym.GoalEnv):
             desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
             achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
             observation=spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
+            image=spaces.Box(-np.inf, np.inf, shape=obs['image0'].shape, dtype='float32'),
+            depth=spaces.Box(-np.inf, np.inf, shape=obs['depth0'].shape, dtype='float32'),
+            contact=spaces.Box(-np.inf, np.inf, shape=obs['contact'].shape, dtype='float32'),
         ))
 
     @property

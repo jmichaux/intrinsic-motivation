@@ -151,6 +151,7 @@ class FetchEnv(robot_env.RobotEnv):
             'depth0': d0[::-1].copy(),
             'image1': im1[::-1, :, :].copy(),
             'depth1': d1[::-1].copy(),
+            'contact': np.array([0., 0., 0.]), #TODO: Replace with real contact forces
         }
 
     def _viewer_setup(self):
