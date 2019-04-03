@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 parser = argparse.ArgumentParser(description='Random Agent')
-parser.add_argument('--env-id', default='FetchPushDense-v2')
+parser.add_argument('--env-id', default='FetchReachDense-v2')
 parser.add_argument('--render', action='store_true')
 parser.add_argument('--verbose', action='store_true')
 parser.add_argument('--save', action='store_true')
@@ -24,12 +24,11 @@ def run_episode(env_id=None, env=None, num_episodes=1, max_steps=100000, render=
         for step in range(1, max_steps + 1):
             if render:
                 env.render()
-            # action = env.action_space.sample() * 0.
-            action = np.array([0.1, 0.1, .1, 0.0])
+            action = env.action_space.sample() * 0.
+            # action = np.array([0., 0.0, 1., 0.0])
             obs, reward, done, info = env.step(action)
             total_reward += reward
             ep_obs.append(obs)
-            print('Desired goal: {}'.format(obs['desired_goal']))
 
             if done:
                 all_obs.append(ep_obs)
@@ -50,6 +49,6 @@ if __name__ == '__main__':
     obs = run_episode(env_id, num_episodes=1, render=render)
     if verbose:
         print('Desired goal: {}'.format(obs['desired_goal']))
-    plt.imshow(obs[0][-1]['image'])
+    plt.imshow(obs[0][-1]['image2'])
     if save:
         plt.savefig('{}_render_{}'.format(env_id, render))
