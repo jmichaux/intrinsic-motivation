@@ -10,8 +10,13 @@
 
  # Project Milestones
  - [ ] Modify gym environments to return images and depth map
- - [ ] Implement PPO agent with FF policy
- - [ ] Add Recurrent policy to PPO agent
+ 	- [x] Modify gym environments to return images and depth map
+ 	- [ ] Modify orientation of additional cameras
+ 	- [ ] Return contact forces for the gripper
+ - [ ] Implement PPO algorithm
+	- [x] Implement Multimodal rollout container
+ 	- [ ] Implement PPO agent with FF policy
+ 	- [ ] Add Recurrent policy to PPO agent
  - [ ] Setup logging for the project
  - [ ] Setup the intrinsic curiosity Module
     - [ ] Forward Dynamics Model
