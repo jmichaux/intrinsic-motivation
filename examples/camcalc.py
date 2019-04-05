@@ -1,7 +1,7 @@
 import numpy as np
 
 def cam_pose(pos, lookat):
-    z_hat = np.array([0,0,1])
+    z_hat = np.array([0,0,-1])
     pos = np.array(pos)
     lookat = np.array(lookat)
 
