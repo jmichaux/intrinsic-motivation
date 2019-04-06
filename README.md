@@ -7,6 +7,12 @@
  * [PyTorch](http://pytorch.org/)
  * [OpenAI Gym](https://github.com/openai/gym)
  * [OpenAI baselines](https://github.com/openai/baselines)
+ 
+ ## Installation
+`https://github.com/jmichaux/multimodal-curiosity.git
+ cd multimodal-curiosity
+ pip install -e .``
+ 
 
  # Project Milestones
  - [ ] Modify gym environments
