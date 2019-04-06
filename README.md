@@ -9,10 +9,11 @@
  * [OpenAI baselines](https://github.com/openai/baselines)
  
  ## Installation
-`https://github.com/jmichaux/multimodal-curiosity.git
- cd multimodal-curiosity
- pip install -e .``
- 
+```
+git clone https://github.com/jmichaux/multimodal-curiosity.git
+cd multimodal-curiosity
+pip install -e .
+``` 
 
  # Project Milestones
  - [ ] Modify gym environments
