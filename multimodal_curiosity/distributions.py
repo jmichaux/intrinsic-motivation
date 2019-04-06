@@ -9,6 +9,7 @@ class Normal(D.Normal):
     def mode(self):
         return self.mean
 
+    # Why?????
     def log_prob(self, action):
         return super().log_prob(action).sum(-1)
 
@@ -29,3 +30,12 @@ class DiagGaussian(nn.Module):
     def forward(self, x):
         mean = self.mu(x)
         return Normal(mean, self.log_std.exp())
+
+if __name__ == '__main__':
+    import numpy as np
+    num_inputs = 20
+    num_outputs = 10
+    policy = DiagGaussian(num_inputs=num_inputs, num_outputs=num_outputs)
+    x = np.random.uniform(-1, 1, num_inputs)
+    x = torch.from_numpy(x).to(torch.float).view(1,-1)
+    y = policy(x)
