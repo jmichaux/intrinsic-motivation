@@ -12,6 +12,7 @@ import torch
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 cv2.ocl.setUseOpenCL(False)
 
 
@@ -36,7 +37,8 @@ def make_fetch_env(env_id, num_processes, seed, log_dir=None,
     if num_processes == 1:
         envs = DummyVecEnv(envs)
     else:
-        envs = SubprocVecEnv(envs)
+        # envs = SubprocVecEnv(envs)
+        envs = ShmemVecEnv(envs)
     if wrap_pytorch:
         return VecEnvPyTorch(envs, device)
     return envs
