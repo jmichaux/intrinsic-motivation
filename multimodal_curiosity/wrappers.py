@@ -34,7 +34,6 @@ def make_fetch_env(env_id, num_processes, seed, log_dir, allow_early_resets, dev
         envs = DummyVecEnv(envs)
     else:
         envs = ShmemVecEnv(envs)
-
     envs = VecEnvPyTorch(envs, device)
     return VecMonitor(envs, max_history=50)
 
@@ -106,19 +105,3 @@ class VecMonitor(VecEnvWrapper):
                 self.lens[i] = 0
                 self.rews[i] = 0.
         return obs, rews, dones, infos
-
-class TorchTensor(gym.ObservationWrapper):
-    """
-    Convert observations to torch tensors
-    """
-    def __init__(self, env=None, device=None):
-        super(TorchTensor, self).__init__(env)
-        self.device = device
-
-    def observation(self, obs):
-        if self.device is None or self.device == 'cpu':
-            return torch.from_numpy(obs).float().to('cpu')
-        return torch.from_numpy(obs).float().to('cuda')
-
-if __name__ == '__main__':
-    env = gym.make('FetchReachDense-v2')
