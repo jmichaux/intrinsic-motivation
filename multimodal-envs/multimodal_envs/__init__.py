@@ -15,28 +15,28 @@ for reward_type in ['dense', 'sparse', 'very_sparse']:
     # Fetch
     register(
         id='FetchSlide{}-v2'.format(suffix),
-        entry_point='multimodal_curiosity.envs:FetchSlideEnv',
+        entry_point='multimodal_envs.envs:FetchSlideEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchPickAndPlace{}-v2'.format(suffix),
-        entry_point='multimodal_curiosity.envs:FetchPickAndPlaceEnv',
+        entry_point='multimodal_envs.envs:FetchPickAndPlaceEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchReach{}-v2'.format(suffix),
-        entry_point='multimodal_curiosity.envs:FetchReachEnv',
+        entry_point='multimodal_envs.envs:FetchReachEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )
 
     register(
         id='FetchPush{}-v2'.format(suffix),
-        entry_point='multimodal_curiosity.envs:FetchPushEnv',
+        entry_point='multimodal_envs.envs:FetchPushEnv',
         kwargs=kwargs,
         max_episode_steps=50,
     )

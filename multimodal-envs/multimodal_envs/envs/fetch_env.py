@@ -1,6 +1,6 @@
 import numpy as np
 
-from multimodal_curiosity.envs import rotations, robot_env, utils
+from multimodal_envs.envs import rotations, robot_env, utils
 
 
 def goal_distance(goal_a, goal_b):

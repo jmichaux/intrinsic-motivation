@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 from gym import utils
-from multimodal_curiosity.envs import fetch_env
+from multimodal_envs.envs import fetch_env
 
 
 
