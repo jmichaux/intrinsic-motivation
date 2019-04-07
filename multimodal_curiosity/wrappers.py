@@ -2,59 +2,41 @@
 Adapted from OpenAI Baselines
 https://github.com/openai/baselines/blob/master/baselines/common/atari_wrappers.py
 """
+import os
+import copy
 from collections import deque
+
 import numpy as np
 import gym
 from gym.spaces.box import Box
-import copy
-import cv2
 import torch
+
+from baselines import bench
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
-cv2.ocl.setUseOpenCL(False)
 
 
-def _make_envs(env_id,
-               seed,
-               rank,
-               log_dir=None,
-               wrap_pytorch=False):
+def make_env(env_id, seed, rank, log_dir, allow_early_resets):
     def _thunk():
         env = gym.make(env_id)
-        if wrap_pytorch:
-            pass
+        env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
         env.seed(seed + rank)
         if log_dir is not None:
             env = bench.Monitor(env, os.path.join(log_dir, str(rank)))
         return env
     return _thunk
 
-def make_fetch_env(env_id, num_processes, seed, log_dir=None,
-                 wrap_pytorch=False, device=None):
-    envs = [_make_envs(env_id, seed, rank, log_dir, wrap_pytorch) for rank in range(num_processes)]
+def make_fetch_env(env_id, num_processes, seed, log_dir, allow_early_resets, device=None):
+    envs = [make_env(env_id, seed, rank, log_dir, allow_early_resets) for rank in range(num_processes)]
     if num_processes == 1:
         envs = DummyVecEnv(envs)
     else:
-        # envs = SubprocVecEnv(envs)
         envs = ShmemVecEnv(envs)
-    if wrap_pytorch:
-        return VecEnvPyTorch(envs, device)
-    return envs
 
-class TorchTensor(gym.ObservationWrapper):
-    """
-    Convert observations to torch tensors
-    """
-    def __init__(self, env=None, device=None):
-        super(TorchTensor, self).__init__(env)
-        self.device = device
-
-    def observation(self, obs):
-        if self.device is None or self.device == 'cpu':
-            return torch.from_numpy(obs).float().to('cpu')
-        return torch.from_numpy(obs).float().to('cuda')
+    envs = VecEnvPyTorch(envs, device)
+    return VecMonitor(envs, max_history=100)
 
 
 class VecEnvPyTorch(VecEnvWrapper):
@@ -87,6 +69,56 @@ class VecEnvPyTorch(VecEnvWrapper):
 
     def close(self):
         self.venv.close()
+
+
+class VecMonitor(VecEnvWrapper):
+    """
+    https://github.com/cbschaff/pytorch-dl/blob/master/dl/util/envs.py
+    """
+    def __init__(self, venv, max_history=1000, tstart=0, tbX=False):
+        super().__init__(venv)
+        self.t = tstart
+        self.enable_tbX = tbX
+        self.episode_rewards = deque(maxlen=max_history)
+        self.episode_lengths = deque(maxlen=max_history)
+        self.rews = np.zeros(self.num_envs, dtype=np.float32)
+        self.lens = np.zeros(self.num_envs, dtype=np.int32)
+
+    def reset(self):
+        obs = self.venv.reset()
+        self.t += sum(self.lens)
+        self.rews = np.zeros(self.num_envs, dtype=np.float32)
+        self.lens = np.zeros(self.num_envs, dtype=np.int32)
+        return obs
+
+    def step_wait(self):
+        obs, rews, dones, infos = self.venv.step_wait()
+        self.rews += rews
+        self.lens += 1
+        for i,done in enumerate(dones):
+            if done:
+                self.episode_lengths.append(self.lens[i])
+                self.episode_rewards.append(self.rews[i])
+                self.t += self.lens[i]
+                if self.enable_tbX and logger.get_summary_writer():
+                    logger.add_scalar('env/episode_length', self.lens[i], self.t, time.time())
+                    logger.add_scalar('env/episode_reward', self.rews[i], self.t, time.time())
+                self.lens[i] = 0
+                self.rews[i] = 0.
+        return obs, rews, dones, infos
+
+class TorchTensor(gym.ObservationWrapper):
+    """
+    Convert observations to torch tensors
+    """
+    def __init__(self, env=None, device=None):
+        super(TorchTensor, self).__init__(env)
+        self.device = device
+
+    def observation(self, obs):
+        if self.device is None or self.device == 'cpu':
+            return torch.from_numpy(obs).float().to('cpu')
+        return torch.from_numpy(obs).float().to('cuda')
 
 if __name__ == '__main__':
     env = gym.make('FetchReachDense-v2')
