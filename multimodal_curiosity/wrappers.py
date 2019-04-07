@@ -24,6 +24,7 @@ def make_env(env_id, seed, rank, log_dir, allow_early_resets):
         env = gym.wrappers.FlattenDictWrapper(env, dict_keys=['observation', 'desired_goal'])
         env.seed(seed + rank)
         if log_dir is not None:
+            # writes total reward, episode length, time to /log-dir/*rank*.csv
             env = bench.Monitor(env, os.path.join(log_dir, str(rank)))
         return env
     return _thunk
