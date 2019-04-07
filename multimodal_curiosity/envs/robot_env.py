@@ -39,15 +39,11 @@ class RobotEnv(gym.GoalEnv):
         self.goal = self._sample_goal()
         obs = self._get_obs()
         self.action_space = spaces.Box(-1., 1., shape=(n_actions,), dtype='float32')
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=obs.shape, dtype=np.float32)
-        # self.observation_space = spaces.Dict(dict(
-        #     desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
-        #     achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
-        #     observation=spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
-        #     image=spaces.Box(-np.inf, np.inf, shape=obs['image1'].shape, dtype='float32'),
-        #     depth=spaces.Box(-np.inf, np.inf, shape=obs['depth1'].shape, dtype='float32'),
-        #     contact=spaces.Box(-np.inf, np.inf, shape=obs['contact'].shape, dtype='float32'),
-        # ))
+        self.observation_space = spaces.Dict(dict(
+            desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
+            achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype='float32'),
+            observation=spaces.Box(-np.inf, np.inf, shape=obs['observation'].shape, dtype='float32'),
+        ))
 
     @property
     def dt(self):
@@ -66,14 +62,10 @@ class RobotEnv(gym.GoalEnv):
         self.sim.step()
         self._step_callback()
         obs = self._get_obs()
-
+        info = self._get_other_obs()
+        info['is_success'] = self._is_success(obs['achieved_goal'], self.goal)
         done = False
-        info = {}
-        reward = self.compute_reward(obs[0:3], self.goal, info)
-        # info = {
-        #     'is_success': self._is_success(obs['achieved_goal'], self.goal),
-        # }
-        # reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
+        reward = self.compute_reward(obs['achieved_goal'], self.goal, info)
         return obs, reward, done, info
 
     def reset(self):

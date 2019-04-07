@@ -119,22 +119,29 @@ class FetchEnv(robot_env.RobotEnv):
             object_velp.ravel(), object_velr.ravel(), grip_velp, gripper_vel,
         ])
 
+        return {
+            'observation': obs.copy(),
+            'achieved_goal': achieved_goal.copy(),
+            'desired_goal': self.goal.copy(),
+        }
+
+    def _get_other_obs(self):
         # RGB-D
-        # im0, d0 = self.sim.render(width=500, height=500, camera_name='external_camera_0', depth=True)
-        # im1, d1 = self.sim.render(width=500, height=500, camera_name='external_camera_1', depth=True)
-        # im2, d2 = self.sim.render(width=500, height=500, camera_name='external_camera_2', depth=True)
+        im0, d0 = self.sim.render(width=500, height=500, camera_name='external_camera_0', depth=True)
+        im1, d1 = self.sim.render(width=500, height=500, camera_name='external_camera_1', depth=True)
+        im2, d2 = self.sim.render(width=500, height=500, camera_name='external_camera_2', depth=True)
 
         # assuming the target site has a name with prefix "target". you can find it out in sim.
         # name = 'target0'
-        target_geom_ids = [self.sim.model.geom_name2id(name)
-                           for name in self.sim.model.geom_names if name.startswith('target')]
-        target_mat_ids = [self.sim.model.geom_matid[gid] for gid in target_geom_ids]
-        target_site_ids = [self.sim.model.site_name2id(name)
-                           for name in self.sim.model.site_names if name.startswith('target')]
-
-        self.sim.model.mat_rgba[target_mat_ids, -1] = 0
-        self.sim.model.geom_rgba[target_geom_ids, -1] = 0
-        self.sim.model.site_rgba[target_site_ids, -1] = 0
+        # target_geom_ids = [self.sim.model.geom_name2id(name)
+        #                    for name in self.sim.model.geom_names if name.startswith('target')]
+        # target_mat_ids = [self.sim.model.geom_matid[gid] for gid in target_geom_ids]
+        # target_site_ids = [self.sim.model.site_name2id(name)
+        #                    for name in self.sim.model.site_names if name.startswith('target')]
+        #
+        # self.sim.model.mat_rgba[target_mat_ids, -1] = 0
+        # self.sim.model.geom_rgba[target_geom_ids, -1] = 0
+        # self.sim.model.site_rgba[target_site_ids, -1] = 0
 
         # print(self.sim.data.get_site_xpos('robot0:grip') - self.sim.data.get_body_xpos('robot0:base_link'))
         # contacts
@@ -145,18 +152,14 @@ class FetchEnv(robot_env.RobotEnv):
         #     print('geom1', contact.geom1, sim.model.geom_id2name(contact.geom1))
         #     print('geom2', contact.geom2, sim.model.geom_id2name(contact.geom2))
 
-        # return {
-        #     'observation': obs.copy(),
-        #     'achieved_goal': achieved_goal.copy(),
-        #     'desired_goal': self.goal.copy(),
-        #     # 'image0': im0[::-1, :, :].copy(),
-        #     'image1': im1[::-1, :, :].copy(),
-        #     'image2': im2[::-1, :, :].copy(),
-        #     'depth1': d1[::-1].copy(),
-        #     'depth2': d2[::-1].copy(),
-        #     # 'contact': np.array([0., 0., 0.]), #TODO: Replace with real contact forces
-        # }
-        return obs.copy()
+        return {
+            'image0': im0[::-1, :, :].copy(),
+            'image1': im1[::-1, :, :].copy(),
+            'image2': im2[::-1, :, :].copy(),
+            'depth1': d1[::-1].copy(),
+            'depth2': d2[::-1].copy(),
+            'contact': np.array([0., 0., 0.]), #TODO: Replace with real contact forces
+        }
 
     def _viewer_setup(self):
         body_id = self.sim.model.body_name2id('robot0:gripper_link')
