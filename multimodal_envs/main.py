@@ -16,9 +16,10 @@ from distributions import DiagGaussian
 import multimodal_curiosity
 from multimodal_curiosity.wrappers import make_fetch_env
 from utils import *
+import logger
 
 parser = argparse.ArgumentParser(description='PPO')
-parser.add_argument('--env_id', type=str, default="FetchReachDense-v1",
+parser.add_argument('--env_id', type=str, default="FetchPushDense-v1",
                     help='Name of atari environment')
 parser.add_argument('--num_processes', type=int, default=8,
                     help='Number of agents')
@@ -39,6 +40,7 @@ parser.add_argument('--eval-freq', type=int, default=100,
                     help="Evaluate model every 'eval_freq' steps")
 parser.add_argument('--lr', '--learning-rate', default=7e-4, type=float,
                     metavar='LR', help='learning rate')
+parser.add_argument('--debug', action='store_true')
 
 def compute_loss(sample, value_coeff, entropy_coeff, eps=0.01):
     obs_batch, actions_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target = sample
@@ -114,9 +116,7 @@ def train(envs, optimizer, max_frames, num_steps, num_processes, gamma=0.99, see
             cpu_actions = action.cpu().numpy()
 
             # take environment step
-            # https://github.com/openai/mujoco-py/issues/340
-            # time.sleep(.002)
-            obs, reward, done, _ = envs.step(cpu_actions)
+            obs, reward, done, info = envs.step(cpu_actions)
 
             # calculate mask
             masks = 1.0 - done.astype(np.float32)
@@ -132,8 +132,9 @@ def train(envs, optimizer, max_frames, num_steps, num_processes, gamma=0.99, see
             masks = torch.from_numpy(masks).float().view(-1, 1).to(device)
             action = action.to(device)
             action_log_probs = action_log_probs.view(-1, 1).to(device)
-            obs = obs['observation'].to(device)
+            obs = obs.to(device)
 
+            # save rollouts
             rollouts.insert(obs,
                             action,
                             action_log_probs,
@@ -147,16 +148,11 @@ def train(envs, optimizer, max_frames, num_steps, num_processes, gamma=0.99, see
         rollouts.compute_returns(next_value, gamma)
 
         # update model
-        policy_loss, value_loss, entropy = 0, 0, 0
         policy_loss, value_loss, entropy = update(
              optimizer, rollouts, n_epochs=3, num_mini_batch=32, grad_norm_max=0.5)
 
         # update rollout storage
         rollouts.after_update()
-
-        #
-        # if frame_idx > 771:
-        #     print(frame_idx)
 
         if frame_idx % 100 == 0:
             print("Updates: {}".format(frame_idx))
@@ -184,7 +180,7 @@ if __name__ == '__main__':
 
     evaluate = args.eval
     evaluate_freq = args.eval_freq
-
+    debug = args.debug
     # setup
     use_cuda = torch.cuda.is_available()
     set_random_seed(seed, use_cuda)
@@ -213,6 +209,11 @@ if __name__ == '__main__':
 
     # setup optimizer
     optimizer = optim.Adam(actor_critic.parameters(), lr=lr)
+
+    if debug:
+        checkpoint = torch.load('ppo_debug')
+        actor_critic.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optim'])
 
     # train
     max_frames = int(20e6)
