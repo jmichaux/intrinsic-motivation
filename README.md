@@ -7,15 +7,22 @@
  * [PyTorch](http://pytorch.org/)
  * [OpenAI Gym](https://github.com/openai/gym)
  * [OpenAI baselines](https://github.com/openai/baselines)
+ 
+ ## Installation
+```
+git clone https://github.com/jmichaux/multimodal-curiosity.git
+cd multimodal-curiosity
+pip install -e .
+``` 
 
  # Project Milestones
  - [ ] Modify gym environments
  	- [x] Modify gym environments to return images and depth map
- 	- [ ] Modify orientation of additional cameras
+ 	- [x] Modify orientation of additional cameras
  	- [ ] Return contact forces for the gripper
  - [ ] Implement PPO algorithm
 	- [x] Implement Multimodal rollout container
- 	- [ ] Implement PPO agent with FF policy
+ 	- [x] Implement PPO agent with FF policy
  	- [ ] Add Recurrent policy to PPO agent
  - [ ] Setup logging for the project
  - [ ] Setup the intrinsic curiosity Module
