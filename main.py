@@ -19,25 +19,26 @@ from utils import compute_intrinsic_rewards
 import logger
 
 parser = argparse.ArgumentParser(description='PPO')
-parser.add_argument('--env-id', type=str, default='FetchPushDense-v1')
+parser.add_argument('--env-id', type=str, default='FetchReachDense-v1')
+parser.add_argument('--add-intrinsics', action='store_true')
 parser.add_argument('--log-dir', type=str, default=None)
-parser.add_argument('--print-freq', type=int, default=10)
+parser.add_argument('--print-freq', type=int, default=1)
 parser.add_argument('--clean-dir', action='store_true')
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--num-processes', type=int, default=4)
+parser.add_argument('--num-processes', type=int, default=1)
 parser.add_argument('--num-steps', type=int, default=2048)
 parser.add_argument('--num-updates', type=int, default=int(1e4))
 parser.add_argument('--ppo-epochs', type=int, default=10)
-parser.add_argument('--dyn-epochs', type=int, default=10)
+parser.add_argument('--dyn-epochs', type=int, default=5)
 parser.add_argument('--num-mini-batch', type=int, default=32)
 parser.add_argument('--clip-param', type=float, default=0.2)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
-parser.add_argument('--dyn-grad-norm-max', type=float, default=50)
+parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
-parser.add_argument('--dyn-lr', type=float, default=1e-4)
+parser.add_argument('--dyn-lr', type=float, default=1e-3)
 parser.add_argument('--pi-lr', type=float, default=1e-4)
 parser.add_argument('--v-lr', type=float, default=1e-3)
 parser.add_argument('--hidden-size', type=int, default=64)
@@ -125,31 +126,33 @@ if __name__ == '__main__':
                                 value, reward, done, infos)
 
         # add intrinsic rewards
-        with torch.no_grad():
-            states = agent.rollouts.obs[:-1]
-            next_states = agent.rollouts.obs[1:]
-            actions = agent.rollouts.actions
-            intrinsic_rewards = compute_intrinsic_rewards(dynamics_model, states, actions, next_states)
-            agent.rollouts.rewards += intrinsic_rewards
+        if args.add_intrinsics:
+            with torch.no_grad():
+                states = agent.rollouts.obs[:-1]
+                next_states = agent.rollouts.obs[1:]
+                actions = agent.rollouts.actions
+                intrinsic_rewards = compute_intrinsic_rewards(dynamics_model, states, actions, next_states)
+                agent.rollouts.rewards += torch.clamp(intrinsic_rewards, -1, 1)
 
-        # Train dynamics model
-        dyn_loss = 0
+            # Train dynamics model
+            dyn_loss = 0
 
-        for epoch in range(args.dyn_epochs):
-            curiosity_generator = agent.rollouts.curiosity_generator(args.num_mini_batch)
+            for epoch in range(args.dyn_epochs):
+                curiosity_generator = agent.rollouts.curiosity_generator(args.num_mini_batch)
 
-            for sample in curiosity_generator:
-                states, actions, next_states = sample
-                loss = compute_intrinsic_reward(dynamics_model, states, actions, next_states)
+                for sample in curiosity_generator:
+                    states, actions, next_states = sample
+                    dynamics_loss = compute_intrinsic_rewards(dynamics_model, states, actions, next_states)
+                    loss = dynamics_loss.mean()
 
-                dynamics_optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm(dynamics_model.parameters(), args.dyn_grad_norm_max)
-                dynamics.optimizer.step()
+                    dynamics_optimizer.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(dynamics_model.parameters(), args.dyn_grad_norm_max)
+                    dynamics_optimizer.step()
 
-                dyn_loss += loss.item()
+                    dyn_loss += loss.item()
 
-        dyn_loss /= (args.dyn_epochs + 1) * args.num_mini_batch
+            dyn_loss /= (args.dyn_epochs + 1) * args.num_mini_batch
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
