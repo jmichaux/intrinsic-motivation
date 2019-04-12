@@ -73,10 +73,10 @@ class FwdDyn(nn.Module):
     def __init__(self, num_inputs, hidden_size, num_outputs):
         super(FwdDyn, self).__init__()
         self.base = nn.Sequential(
-            init_relu(nn.Linear(num_inputs, hidden_size)), nn.ReLU(),
-            init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
+            init_relu(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
+            init_relu(nn.Linear(hidden_size, hidden_size)), nn.Tanh(),
             init_tanh(nn.Linear(hidden_size, num_outputs)), nn.Tanh())
 
     def forward(self, state, action):
-        feature = torch.cat((state, action), 2)
+        feature = torch.cat((state, action), -1)
         return self.base(feature)
