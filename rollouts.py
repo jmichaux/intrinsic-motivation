@@ -112,6 +112,25 @@ class Rollouts(object):
 
             yield obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target
 
+    def curiosity_generator(self, num_mini_batch):
+        # get number of steps and number of processes
+        num_steps, num_processes = self.rewards.size()[0:2]
+        batch_size = num_steps * num_processes
+        # make sure the size of the batch is greater than the number of mini batches
+        assert batch_size >= num_mini_batch
+        # size of minibatch is size of big batch / number of minibatches
+        mini_batch_size = batch_size // num_mini_batch
+        # This will randomly partition indices will keep the last partition even
+        # if it isn't the same size as mini_batch_size
+        sampler = BatchSampler(SubsetRandomSampler(range(batch_size)), mini_batch_size, drop_last=False)
+
+        for indices in sampler:
+            obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
+            next_obs_batch = self.obs[1].view(-1, *self.obs.size()[2:])[indices]
+            actions_batch = self.actions.view(-1, *self.actions.size()[2:])[indices]
+
+            yield obs_batch, actions_batch, next_obs_batch
+
     def recurrent_generator(self, advantages, num_mini_batch):
         pass
 
