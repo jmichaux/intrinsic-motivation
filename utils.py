@@ -8,7 +8,7 @@ import torch.nn as nn
 
 BASEDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'logs')
 
-def create_log_dir(exp_name, force_clean=False):
+def create_log_dirs(exp_name, checkpoint=True, force_clean=False):
     exp_dir = os.path.join(BASEDIR, exp_name)
     try:
         os.makedirs(exp_dir)
@@ -26,7 +26,8 @@ def create_log_dir(exp_name, force_clean=False):
     run_dir = 'run' + str(sum(os.path.isdir(os.path.abspath(os.path.join(exp_dir, i))) for i in os.listdir(exp_dir)))
     run_dir = os.path.join(exp_dir, run_dir)
     os.makedirs(run_dir)
-    print("Logs being stored at {}". format(run_dir))
+    if checkpoint:
+        os.makedirs(os.path.join(run_dir, 'checkpoint'))
     return run_dir
 
 def set_random_seeds(seed, cuda=True, debug=False):
@@ -48,6 +49,10 @@ def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
+
+def compute_intrinsic_rewards(model, states, actions, next_states):
+    next_states_preds = model(states, actions)
+    return 0.5 * (next_states - next_states_preds).pow(2)
 
 init_tanh = lambda m: init(m, nn.init.orthogonal_,lambda x: nn.init.
                        constant_(x, 0), 5.0/3)
