@@ -30,13 +30,13 @@ CSVOutputFormat.__init__ = append_csv_init
 
 # create global tensorboardX summary writer.
 WRITER = None
-def configure(logdir, format_strs=None, tbX=False, **kwargs):
+def configure(log_dir, format_strs=None, tbX=False, **kwargs):
     global WRITER
     if tbX:
-        WRITER = SummaryWriter(logdir, **kwargs)
+        WRITER = SummaryWriter(log_dir, **kwargs)
     else:
         WRITER = None
-    baselines_configure(logdir, format_strs)
+    baselines_configure(log_dir, format_strs)
 
 def get_summary_writer():
     return WRITER
