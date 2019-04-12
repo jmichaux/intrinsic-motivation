@@ -13,7 +13,7 @@ class PPO():
                  hidden_size=64,
                  num_steps=2048,
                  num_processes=1,
-                 num_epochs=10,
+                 ppo_epochs=10,
                  num_mini_batch=32,
                  pi_lr=3e-4,
                  v_lr=1e-3,
@@ -29,7 +29,7 @@ class PPO():
 
         # ppo hyperparameters
         self.clip_param = clip_param
-        self.num_epochs = num_epochs
+        self.ppo_epochs = ppo_epochs
         self.num_mini_batch = num_mini_batch
 
         # loss hyperparameters
@@ -137,7 +137,7 @@ class PPO():
         entropy_epoch = 0
         kl_epoch = 0
 
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.ppo_epochs):
             data_generator = self.rollouts.feed_forward_generator(advantages, self.num_mini_batch)
 
             for sample in data_generator:
@@ -165,7 +165,7 @@ class PPO():
                 entropy_epoch += entropy.item()
                 kl_epoch += kl.item()
 
-        num_updates = (self.num_epochs + 1) * self.num_mini_batch
+        num_updates = (self.ppo_epochs + 1) * self.num_mini_batch
         total_loss = value_loss_epoch + policy_loss_epoch - entropy_epoch
         value_loss_epoch /= num_updates
         policy_loss_epoch /= num_updates
