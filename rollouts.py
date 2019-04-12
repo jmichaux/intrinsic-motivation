@@ -67,17 +67,27 @@ class Rollouts(object):
         self.obs[0].copy_(self.obs[-1])
         self.masks[0].copy_(self.masks[-1])
 
-    def compute_returns(self, next_value, gamma=0.99, use_gae=False, tau=1.0):
+    def compute_returns(self, next_value, gamma=0.99, use_gae=True, gae_lambda=0.95):
         """
-        # TODO: Maybe set default values for use_gae and tau
+        # TODO: Maybe set default values for use_gae and gae_lambda
         """
+
         if use_gae:
-            pass
+            self.value_preds[-1] = next_value
+            gae = 0
+            for step in reversed(range(self.rewards.size(0))):
+                delta = self.rewards[step] + gamma * self.value_preds[
+                    step + 1] * self.masks[step +
+                                           1] - self.value_preds[step]
+                gae = delta + gamma * gae_lambda * self.masks[step +
+                                                              1] * gae
+                self.returns[step] = gae + self.value_preds[step]
         else:
             self.returns[-1] = next_value
             for step in reversed(range(self.rewards.size(0))):
                 self.returns[step] = self.returns[step + 1] * \
                     gamma * self.masks[step + 1] + self.rewards[step]
+
 
     def feed_forward_generator(self, advantages, num_mini_batch):
         # get number of steps and number of processes
@@ -94,12 +104,13 @@ class Rollouts(object):
         for indices in sampler:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
             actions_batch = self.actions.view(-1, *self.actions.size()[2:])[indices]
+            value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
             return_batch = self.returns[:-1].view(-1, 1)[indices]
             masks_batch = self.masks[:-1].view(-1, 1)[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
             adv_target = advantages.view(-1, 1)[indices]
 
-            yield obs_batch, actions_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target
+            yield obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target
 
     def recurrent_generator(self, advantages, num_mini_batch):
         pass
