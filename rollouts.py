@@ -126,7 +126,7 @@ class Rollouts(object):
 
         for indices in sampler:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
-            next_obs_batch = self.obs[1].view(-1, *self.obs.size()[2:])[indices]
+            next_obs_batch = self.obs[1:].view(-1, *self.obs.size()[2:])[indices]
             actions_batch = self.actions.view(-1, *self.actions.size()[2:])[indices]
 
             yield obs_batch, actions_batch, next_obs_batch
