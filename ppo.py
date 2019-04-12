@@ -166,7 +166,7 @@ class PPO():
                 kl_epoch += kl.item()
 
         num_updates = (self.ppo_epochs + 1) * self.num_mini_batch
-        total_loss = value_loss_epoch + policy_loss_epoch - entropy_epoch
+        total_loss_epoch /= num_updates
         value_loss_epoch /= num_updates
         policy_loss_epoch /= num_updates
         entropy_epoch /= num_updates
@@ -178,4 +178,4 @@ class PPO():
             delta_p = policy_loss_new - policy_loss_old
             delta_v = value_loss_new - value_loss_old
 
-        return total_loss, policy_loss_epoch, value_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
+        return total_loss_epoch, policy_loss_epoch, value_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
