@@ -15,12 +15,12 @@ from ppo import PPO
 import multimodal_envs
 from multimodal_envs.wrappers import make_vec_envs
 import utils
-from utils import compute_intrinsic_rewards
 import logger
 
 parser = argparse.ArgumentParser(description='PPO')
-parser.add_argument('--env-id', type=str, default='FetchReachDense-v1')
-parser.add_argument('--add-intrinsics', action='store_true')
+parser.add_argument('--env-id', type=str, default='FetchReach-v1')
+parser.add_argument('--add-intrinsic-reward', action='store_true')
+parser.add_argument('--share-optim', action='store_true')
 parser.add_argument('--log-dir', type=str, default=None)
 parser.add_argument('--print-freq', type=int, default=1)
 parser.add_argument('--clean-dir', action='store_true')
@@ -74,6 +74,7 @@ if __name__ == '__main__':
     agent = PPO(envs.observation_space,
                 envs.action_space,
                 actor_critic=ActorCritic,
+                dynamics_model=FwdDyn,
                 optimizer=optim.Adam,
                 hidden_size=args.hidden_size,
                 num_steps=args.num_steps,
@@ -82,22 +83,17 @@ if __name__ == '__main__':
                 num_mini_batch=args.num_mini_batch,
                 pi_lr=args.pi_lr,
                 v_lr=args.v_lr,
+                dyn_lr=args.v_lr,
                 clip_param=args.clip_param,
                 value_coef=args.value_coef,
                 entropy_coef=args.entropy_coef,
                 grad_norm_max=args.grad_norm_max,
                 use_clipped_value_loss=True,
                 use_tensorboard=args.use_tensorboard,
+                add_intrinsic_reward=args.add_intrinsic_reward,
                 device=device,
+                share_optim=args.share_optim,
                 debug=args.debug)
-
-    # create dynamics model and optimizer
-    dynamics_dim = envs.observation_space.shape[0] + envs.action_space.shape[0]
-    dynamics_model = FwdDyn(num_inputs=dynamics_dim,
-                      hidden_size=64,
-                      num_outputs=envs.observation_space.shape[0])
-    dynamics_model.to(device)
-    dynamics_optimizer = optim.Adam(dynamics_model.parameters(), lr=args.dyn_lr)
 
     # reset envs and initialize rollouts
     obs = envs.reset()
@@ -116,6 +112,12 @@ if __name__ == '__main__':
             # take a step in the environment
             obs, reward, done, infos = envs.step(action)
 
+            # get intrinsic reward
+            if args.add_intrinsic:
+                intrinsic_reward = agent.compute_intrinsic_reward(step)
+            else:
+                intrinsic_reward = 0
+
             # get episode reward
             for info in infos:
                 if 'episode' in info.keys():
@@ -123,42 +125,15 @@ if __name__ == '__main__':
 
             # store experience
             agent.store_rollout(obs[1], action, action_log_probs,
-                                value, reward, done, infos)
-
-        # add intrinsic rewards
-        if args.add_intrinsics:
-            with torch.no_grad():
-                states = agent.rollouts.obs[:-1]
-                next_states = agent.rollouts.obs[1:]
-                actions = agent.rollouts.actions
-                intrinsic_rewards = compute_intrinsic_rewards(dynamics_model, states, actions, next_states)
-                agent.rollouts.rewards += torch.clamp(intrinsic_rewards, -1, 1)
-
-            # Train dynamics model
-            dyn_loss = 0
-
-            for epoch in range(args.dyn_epochs):
-                curiosity_generator = agent.rollouts.curiosity_generator(args.num_mini_batch)
-
-                for sample in curiosity_generator:
-                    states, actions, next_states = sample
-                    dynamics_loss = compute_intrinsic_rewards(dynamics_model, states, actions, next_states)
-                    loss = dynamics_loss.mean()
-
-                    dynamics_optimizer.zero_grad()
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(dynamics_model.parameters(), args.dyn_grad_norm_max)
-                    dynamics_optimizer.step()
-
-                    dyn_loss += loss.item()
-
-            dyn_loss /= (args.dyn_epochs + 1) * args.num_mini_batch
+                                value, reward, intrinsic_reward,
+                                done, infos)
 
         # compute returns
-        agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
+        agent.compute_returns(args.gamma, args.use_gae,
+                              args.gae_lambda, args.add_intrinsic)
 
         # update policy and value_fn, reset rollout storage
-        tot_loss, pi_loss, v_loss, entropy, kl, delta_p, delta_v =  agent.update()
+        tot_loss, pi_loss, v_loss, dyn_loss, entropy, kl, delta_p, delta_v =  agent.update()
 
         # log data
         current = time.time()

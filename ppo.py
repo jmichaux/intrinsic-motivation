@@ -9,6 +9,7 @@ class PPO():
                  observation_space,
                  action_space,
                  actor_critic,
+                 dynamics_model,
                  optimizer=optim.Adam,
                  hidden_size=64,
                  num_steps=2048,
@@ -20,9 +21,11 @@ class PPO():
                  clip_param=0.2,
                  value_coef=0.5,
                  entropy_coef=0.01,
+                 dyn_coef=0.5,
                  grad_norm_max=0.5,
                  use_clipped_value_loss=True,
                  use_tensorboard=True,
+                 add_intrinsic_reward=False,
                  device='cpu',
                  share_optim=False,
                  debug=False):
@@ -37,24 +40,40 @@ class PPO():
         self.v_lr = v_lr
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
+        self.dyn_coef = dyn_coef
 
         # clip values
         self.grad_norm_max = grad_norm_max
         self.use_clipped_value_loss = use_clipped_value_loss
+        self.add_intrinsic_reward = add_intrinsic_reward
 
         # setup actor critic
         self.actor_critic = actor_critic(
             num_inputs=observation_space.shape[0],
             hidden_size=hidden_size,
             num_outputs=action_space.shape[0])
+        self.actor_critic.to(device)
+
+        # setup dynamics model
+        if self.add_intrinsic_reward:
+            dynamics_dim = observation_space.shape[0] + action_space.shape[0]
+            self.dynamics_model = FwdDyn(num_inputs=dynamics_dim,
+                                         hidden_size=64,
+                                         num_outputs=observation_space.shape[0])
+            self.dynamics_model.to(device)
 
         # setup optimizers
         self.share_optim = share_optim
         if self.share_optim:
-            self.optimizer = optimizer(self.actor_critic.parameters(), lr=pi_lr)
+            if self.add_intrinsic_reward:
+                self.optimizer = optimizer(list(self.actor_critic.parameters()) + list(self.dynamics_model.parameters()), lr=pi_lr)
+            else:
+                self.optimizer = optimizer(self.actor_critic.parameters(), lr=pi_lr)
         else:
             self.policy_optimizer = optimizer(self.actor_critic.policy.parameters(), lr=pi_lr)
             self.value_fn_optimizer = optimizer(self.actor_critic.value_fn.parameters(), lr=v_lr)
+            if self.add_intrinsic_reward:
+                self.dynamics_optimizer = optimizer(self.dynamics_model.parameters(), lr=args.dyn_lr)
 
         # create rollout storage
         self.rollouts = Rollouts(num_steps, num_processes,
@@ -80,18 +99,27 @@ class PPO():
     def compute_returns(self, gamma, use_gae=True, gae_lambda=0.95):
         with torch.no_grad():
             next_value = self.actor_critic.get_value(self.rollouts.obs[-1]).detach()
+        if self.add_intrinsic_reward:
+            self.rollouts.rewards += self.rollouts.intrinsic_rewards
         self.rollouts.compute_returns(next_value, gamma, use_gae, gae_lambda)
+
+    def compute_intrinsic_reward(self, step):
+        with torch.no_grad():
+            obs = self.rollouts.obs[step]
+            action = self.rollouts.actions[step]
+            next_obs = self.rollouts.obs[step + 1]
+            next_obs_preds = self.dynamics_model(state, action)
+            return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
 
     def update(self):
         tot_loss, pi_loss, v_loss, ent, kl, delta_p, delta_v = self._update()
 
         self.rollouts.after_update()
-
-        return tot_loss, pi_loss, v_loss, ent, kl, delta_p, delta_v
+        return tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v
 
     def compute_loss(self, sample):
         # get sample batch
-        obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target = sample
+        obs_batch, actions_batch, next_obs_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target = sample
 
         # evaluate actions
         values, action_log_probs, entropy = self.actor_critic.evaluate_action(obs_batch, actions_batch)
@@ -111,13 +139,24 @@ class PPO():
         else:
             value_loss = 0.5 * (return_batch - values).pow(2).mean()
 
+        # compute dynamics loss
+        if self.add_intrinsic_reward:
+            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, next_obs_batch)
+        else:
+            dynamics_loss = 0
+
         # compute total loss
-        total_loss =  self.value_coef * value_loss + (policy_loss - self.entropy_coef * entropy)
+        total_loss =  self.value_coef * value_loss + self.dyn_coef * dynamics_loss \
+                    + (policy_loss - self.entropy_coef * entropy)
 
         # compute kl divergence
         kl = (old_action_log_probs_batch - action_log_probs).mean().detach()
 
-        return total_loss, policy_loss, value_loss, entropy, kl
+        return total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl
+
+    def compute_dynamics_loss(self, obs, action, next_obs):
+        next_obs_preds = self.dynamics_model(obs, action)
+        return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
 
     def _update(self):
         # compute and normalize advantages
@@ -129,11 +168,12 @@ class PPO():
             # Get whole batch of data
             update_generator = self.rollouts.feed_forward_generator(advantages, num_mini_batch=1)
             for update_sample in update_generator:
-                _, policy_loss_old, value_loss_old, _, _ = self.compute_loss(update_sample)
+                _, policy_loss_old, value_loss_old, _, _, _ = self.compute_loss(update_sample)
 
         total_loss_epoch = 0
-        value_loss_epoch = 0
         policy_loss_epoch = 0
+        value_loss_epoch = 0
+        dynamics_loss_epoch = 0
         entropy_epoch = 0
         kl_epoch = 0
 
@@ -141,7 +181,7 @@ class PPO():
             data_generator = self.rollouts.feed_forward_generator(advantages, self.num_mini_batch)
 
             for sample in data_generator:
-                total_loss, policy_loss, value_loss, entropy, kl = self.compute_loss(sample)
+                total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl = self.compute_loss(sample)
 
                 if self.share_optim:
                     self.optimizer.zero_grad()
@@ -159,9 +199,18 @@ class PPO():
                     torch.nn.utils.clip_grad_norm_(self.actor_critic.value_fn.parameters(), self.grad_norm_max)
                     self.value_fn_optimizer.step()
 
+                    if self.add_intrinsic_reward:
+                        self.dynamics_optimizer.zero_grad()
+                        dynamics_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(self.dynamics_model.parameters(), self.grad_norm_max)
+                        self.dynamics_optimizer.step()
+                    else:
+                        dynamics_loss = 0
+
                 total_loss_epoch += total_loss.item()
-                value_loss_epoch += value_loss.item()
                 policy_loss_epoch += policy_loss.item()
+                value_loss_epoch += value_loss.item()
+                dynamics_loss_epoch += dynamics_loss.item()
                 entropy_epoch += entropy.item()
                 kl_epoch += kl.item()
 
@@ -178,4 +227,4 @@ class PPO():
             delta_p = policy_loss_new - policy_loss_old
             delta_v = value_loss_new - value_loss_old
 
-        return total_loss_epoch, policy_loss_epoch, value_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
+        return total_loss_epoch, policy_loss_epoch, value_loss_epoch, dynamics_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
