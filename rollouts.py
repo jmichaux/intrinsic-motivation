@@ -51,7 +51,7 @@ class Rollouts(object):
         self.actions = self.actions.to(device)
         self.masks = self.masks.to(device)
 
-    def insert(self, obs, actions, action_log_probs, value_preds, rewards, intrinsic_rewards,s masks):
+    def insert(self, obs, actions, action_log_probs, value_preds, rewards, intrinsic_rewards, masks):
         self.obs[self.step + 1].copy_(obs)
         self.actions[self.step].copy_(actions)
         self.action_log_probs[self.step].copy_(action_log_probs)
