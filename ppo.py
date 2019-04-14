@@ -74,7 +74,7 @@ class PPO():
             self.policy_optimizer = optimizer(self.actor_critic.policy.parameters(), lr=pi_lr)
             self.value_fn_optimizer = optimizer(self.actor_critic.value_fn.parameters(), lr=v_lr)
             if self.add_intrinsic_reward:
-                self.dynamics_optimizer = optimizer(self.dynamics_model.parameters(), lr=args.dyn_lr)
+                self.dynamics_optimizer = optimizer(self.dynamics_model.parameters(), lr=dyn_lr)
 
         # create rollout storage
         self.rollouts = Rollouts(num_steps, num_processes,
@@ -109,7 +109,7 @@ class PPO():
             obs = self.rollouts.obs[step]
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
-            next_obs_preds = self.dynamics_model(state, action)
+            next_obs_preds = self.dynamics_model(obs, action)
             return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
 
     def update(self):
@@ -157,7 +157,7 @@ class PPO():
 
     def compute_dynamics_loss(self, obs, action, next_obs):
         next_obs_preds = self.dynamics_model(obs, action)
-        return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
+        return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1).mean()
 
     def _update(self):
         # compute and normalize advantages
