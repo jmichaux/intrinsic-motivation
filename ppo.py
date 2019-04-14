@@ -58,9 +58,9 @@ class PPO():
         # setup dynamics model
         if self.add_intrinsic_reward:
             dynamics_dim = observation_space.shape[0] + action_space.shape[0]
-            self.dynamics_model = FwdDyn(num_inputs=dynamics_dim,
-                                         hidden_size=64,
-                                         num_outputs=observation_space.shape[0])
+            self.dynamics_model = dynamics_model(num_inputs=dynamics_dim,
+                                                 hidden_size=64,
+                                                 num_outputs=observation_space.shape[0])
             self.dynamics_model.to(device)
 
         # setup optimizers
@@ -93,9 +93,9 @@ class PPO():
         with torch.no_grad():
             return self.actor_critic.get_value(obs)
 
-    def store_rollout(self, obs, action, action_log_probs, value, reward, intrinsic_reward, masks):
+    def store_rollout(self, obs, action, action_log_probs, value, reward, intrinsic_reward, done):
         masks = torch.tensor(1.0 - done.astype(np.float32)).view(-1, 1)
-        self.rollouts.insert(obs, action, action_log_probs, value, reward, masks)
+        self.rollouts.insert(obs, action, action_log_probs, value, reward, intrinsic_reward, masks)
 
     def compute_returns(self, gamma, use_gae=True, gae_lambda=0.95):
         with torch.no_grad():
@@ -113,7 +113,7 @@ class PPO():
             return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
 
     def update(self):
-        tot_loss, pi_loss, v_loss, ent, kl, delta_p, delta_v = self._update()
+        tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v = self._update()
 
         self.rollouts.after_update()
         return tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v
@@ -189,6 +189,9 @@ class PPO():
                     total_loss.backward()
                     torch.nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.grad_norm_max)
                     self.optimizer.step()
+
+                    if not self.add_intrinsic_reward:
+                        dynamics_loss = torch.tensor(0).view(1, 1)
                 else:
                     self.policy_optimizer.zero_grad()
                     (policy_loss - self.entropy_coef * entropy).backward()
@@ -206,7 +209,7 @@ class PPO():
                         torch.nn.utils.clip_grad_norm_(self.dynamics_model.parameters(), self.grad_norm_max)
                         self.dynamics_optimizer.step()
                     else:
-                        dynamics_loss = 0
+                        dynamics_loss = torch.tensor(0).view(1, 1)
 
                 total_loss_epoch += total_loss.item()
                 policy_loss_epoch += policy_loss.item()
@@ -224,7 +227,7 @@ class PPO():
 
         # policy and value losses after gradient update
         with torch.no_grad():
-            _, policy_loss_new, value_loss_new, _, _ = self.compute_loss(update_sample)
+            _, policy_loss_new, value_loss_new, _, _, _ = self.compute_loss(update_sample)
             delta_p = policy_loss_new - policy_loss_old
             delta_v = value_loss_new - value_loss_old
 

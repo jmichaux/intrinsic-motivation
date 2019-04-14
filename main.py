@@ -18,7 +18,7 @@ import utils
 import logger
 
 parser = argparse.ArgumentParser(description='PPO')
-parser.add_argument('--env-id', type=str, default='FetchReach-v1')
+parser.add_argument('--env-id', type=str, default='Reacher-v2')
 parser.add_argument('--add-intrinsic-reward', action='store_true')
 parser.add_argument('--share-optim', action='store_true')
 parser.add_argument('--log-dir', type=str, default=None)
@@ -38,9 +38,9 @@ parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
-parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--pi-lr', type=float, default=1e-4)
+parser.add_argument('--pi-lr', type=float, default=3e-4)
 parser.add_argument('--v-lr', type=float, default=1e-3)
+parser.add_argument('--dyn-lr', type=float, default=1e-3)
 parser.add_argument('--hidden-size', type=int, default=64)
 parser.add_argument('--gamma', type=float, default=0.99)
 parser.add_argument('--use-gae', action='store_true')
@@ -116,7 +116,7 @@ if __name__ == '__main__':
             if args.add_intrinsic_reward:
                 intrinsic_reward = agent.compute_intrinsic_reward(step)
             else:
-                intrinsic_reward = 0
+                intrinsic_reward = torch.tensor(0).view(1, 1)
 
             # get episode reward
             for info in infos:
@@ -129,8 +129,7 @@ if __name__ == '__main__':
                                 done)
 
         # compute returns
-        agent.compute_returns(args.gamma, args.use_gae,
-                              args.gae_lambda, args.add_intrinsic)
+        agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
 
         # update policy and value_fn, reset rollout storage
         tot_loss, pi_loss, v_loss, dyn_loss, entropy, kl, delta_p, delta_v =  agent.update()

@@ -45,8 +45,8 @@ class Policy(nn.Module):
 
         # actor
         self.base = nn.Sequential(
-            init_relu(nn.Linear(num_inputs, hidden_size)), nn.ReLU(),
-            init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
+            init_relu(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
+            # init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
             init_tanh(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
 
         self.dist = DiagGaussian(hidden_size, num_outputs)
@@ -60,8 +60,8 @@ class ValueFn(nn.Module):
 
         # critic
         self.base = nn.Sequential(
-            init_tanh(nn.Linear(num_inputs, hidden_size)), nn.ReLU(),
-            init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
+            init_tanh(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
+            # init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
             init_tanh(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
         self.head = init_(nn.Linear(hidden_size, 1))
 
