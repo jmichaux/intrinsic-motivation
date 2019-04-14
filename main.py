@@ -113,7 +113,7 @@ if __name__ == '__main__':
             obs, reward, done, infos = envs.step(action)
 
             # get intrinsic reward
-            if args.add_intrinsic:
+            if args.add_intrinsic_reward:
                 intrinsic_reward = agent.compute_intrinsic_reward(step)
             else:
                 intrinsic_reward = 0
