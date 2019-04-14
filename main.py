@@ -126,7 +126,7 @@ if __name__ == '__main__':
             # store experience
             agent.store_rollout(obs[1], action, action_log_probs,
                                 value, reward, intrinsic_reward,
-                                done, infos)
+                                done)
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae,

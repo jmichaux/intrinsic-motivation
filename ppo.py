@@ -93,7 +93,7 @@ class PPO():
         with torch.no_grad():
             return self.actor_critic.get_value(obs)
 
-    def store_rollout(self, obs, action, action_log_probs, value, reward, done, infos):
+    def store_rollout(self, obs, action, action_log_probs, value, reward, intrinsic_reward, masks):
         masks = torch.tensor(1.0 - done.astype(np.float32)).view(-1, 1)
         self.rollouts.insert(obs, action, action_log_probs, value, reward, masks)
 

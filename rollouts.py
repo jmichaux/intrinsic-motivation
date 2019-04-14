@@ -19,6 +19,7 @@ class Rollouts(object):
         self.returns = torch.zeros(num_steps + 1, num_processes, 1)
 
         self.rewards = torch.zeros(num_steps, num_processes, 1)
+        self.intrinsic_rewards = torch.zeros(num_steps, num_processes, 1)
         self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
 
         if action_space.__class__.__name__ == 'Discrete':
@@ -43,18 +44,20 @@ class Rollouts(object):
             device = self.device
         self.obs = self.obs.to(device)
         self.rewards = self.rewards.to(device)
+        self.intrinsic_rewards = self.intrinsic_rewards.to(device)
         self.value_preds = self.value_preds.to(device)
         self.returns = self.returns.to(device)
         self.action_log_probs = self.action_log_probs.to(device)
         self.actions = self.actions.to(device)
         self.masks = self.masks.to(device)
 
-    def insert(self, obs, actions, action_log_probs, value_preds, rewards, masks):
+    def insert(self, obs, actions, action_log_probs, value_preds, rewards, intrinsic_rewards,s masks):
         self.obs[self.step + 1].copy_(obs)
         self.actions[self.step].copy_(actions)
         self.action_log_probs[self.step].copy_(action_log_probs)
         self.value_preds[self.step].copy_(value_preds)
         self.rewards[self.step].copy_(rewards)
+        self.intrinsic_rewards[self.step].copy_(intrinsic_rewards)
         self.masks[self.step + 1].copy_(masks)
 
         self.step = (self.step + 1) % self.num_steps
@@ -71,7 +74,6 @@ class Rollouts(object):
         """
         # TODO: Maybe set default values for use_gae and gae_lambda
         """
-
         if use_gae:
             self.value_preds[-1] = next_value
             gae = 0
@@ -104,13 +106,14 @@ class Rollouts(object):
         for indices in sampler:
             obs_batch = self.obs[:-1].view(-1, *self.obs.size()[2:])[indices]
             actions_batch = self.actions.view(-1, *self.actions.size()[2:])[indices]
+            next_obs_batch = self.obs[1:].view(-1, *self.obs.size()[2:])[indices]
             value_preds_batch = self.value_preds[:-1].view(-1, 1)[indices]
             return_batch = self.returns[:-1].view(-1, 1)[indices]
             masks_batch = self.masks[:-1].view(-1, 1)[indices]
             old_action_log_probs_batch = self.action_log_probs.view(-1, 1)[indices]
             adv_target = advantages.view(-1, 1)[indices]
 
-            yield obs_batch, actions_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target
+            yield obs_batch, actions_batch, next_obs_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target
 
     def curiosity_generator(self, num_mini_batch):
         # get number of steps and number of processes
