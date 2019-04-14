@@ -18,6 +18,7 @@ class PPO():
                  num_mini_batch=32,
                  pi_lr=3e-4,
                  v_lr=1e-3,
+                 dyn_lr=1e-3,
                  clip_param=0.2,
                  value_coef=0.5,
                  entropy_coef=0.01,

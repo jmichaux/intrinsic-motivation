@@ -83,7 +83,7 @@ if __name__ == '__main__':
                 num_mini_batch=args.num_mini_batch,
                 pi_lr=args.pi_lr,
                 v_lr=args.v_lr,
-                dyn_lr=args.v_lr,
+                dyn_lr=args.dyn_lr,
                 clip_param=args.clip_param,
                 value_coef=args.value_coef,
                 entropy_coef=args.entropy_coef,
