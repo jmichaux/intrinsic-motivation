@@ -18,36 +18,37 @@ import utils
 import logger
 
 parser = argparse.ArgumentParser(description='PPO')
+parser.add_argument('--experiment-name', type=str, default='RandomAgent')
 parser.add_argument('--env-id', type=str, default='FetchReachDense-v1')
 parser.add_argument('--add-intrinsic-reward', action='store_true')
 parser.add_argument('--share-optim', action='store_true')
 parser.add_argument('--log-dir', type=str, default=None)
-parser.add_argument('--print-freq', type=int, default=1)
+parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--clean-dir', action='store_true')
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--num-processes', type=int, default=1)
+parser.add_argument('--num-env-steps', type=int, default=int(1e6))
+parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
-parser.add_argument('--num-updates', type=int, default=int(1e5))
+# parser.add_argument('--num-updates', type=int, default=int(1e2))
 parser.add_argument('--ppo-epochs', type=int, default=10)
 parser.add_argument('--dyn-epochs', type=int, default=5)
 parser.add_argument('--num-mini-batch', type=int, default=32)
 parser.add_argument('--clip-param', type=float, default=0.2)
 parser.add_argument('--value-coef', type=float, default=0.5)
-parser.add_argument('--entropy-coef', type=float, default=0.0)
+parser.add_argument('--entropy-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
-parser.add_argument('--pi-lr', type=float, default=3e-4)
-parser.add_argument('--v-lr', type=float, default=1e-3)
+parser.add_argument('--pi-lr', type=float, default=7e-4)
+parser.add_argument('--v-lr', type=float, default=3e-3)
 parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--hidden-size', type=int, default=64)
+parser.add_argument('--hidden-size', type=int, default=128)
 parser.add_argument('--gamma', type=float, default=0.99)
 parser.add_argument('--use-gae', action='store_true')
 parser.add_argument('--gae-lambda', type=float, default=0.95)
 parser.add_argument('--cuda', action='store_false', default=True, help='enables CUDA training')
 parser.add_argument('--debug', action='store_true')
-parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--eval-interval', type=int, default=100)
 
 if __name__ == '__main__':
@@ -56,7 +57,8 @@ if __name__ == '__main__':
 
     # setup logging
     if args.log_dir is None:
-        log_dir = utils.create_log_dirs(args.env_id, force_clean=args.clean_dir)
+        log_dir = utils.create_log_dirs("{}/{}".format(args.env_id, args.experiment_name),
+                                        force_clean=args.clean_dir)
     else:
         log_dir = args.log_dir
     logger.configure(log_dir, ['stdout', 'log'], tbX=args.use_tensorboard)
@@ -104,7 +106,9 @@ if __name__ == '__main__':
     start = time.time()
     episode_rewards = deque(maxlen=10)
 
-    for update in range(args.num_updates):
+    num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
+
+    for update in range(num_updates):
         for step in range(args.num_steps):
             # select action
             value, action, action_log_probs = agent.select_action(step)
@@ -135,45 +139,45 @@ if __name__ == '__main__':
         tot_loss, pi_loss, v_loss, dyn_loss, entropy, kl, delta_p, delta_v =  agent.update()
 
         # log data
-        current = time.time()
-        delta_t = current - start
-        total_steps = (update + 1) * args.num_processes * args.num_steps
-        fps =int(total_steps / (current - start))
+        if update % args.log_interval == 0:
+            current = time.time()
+            delta_t = current - start
+            total_steps = (update + 1) * args.num_processes * args.num_steps
+            fps =int(total_steps / (current - start))
 
-        logger.logkv('Time/Updates', update)
-        logger.logkv('Time/Total Steps', total_steps)
-        logger.logkv('Time/FPS', fps)
-        logger.logkv('Time/Current', current)
-        logger.logkv('Time/Elapsed', delta_t)
-        logger.logkv('Reward/Mean', np.mean(episode_rewards))
-        logger.logkv('Reward/Median', np.median(episode_rewards))
-        logger.logkv('Reward/Min', np.min(episode_rewards))
-        logger.logkv('Reward/Max', np.max(episode_rewards))
-        logger.logkv('Loss/Total', tot_loss)
-        logger.logkv('Loss/Policy', pi_loss)
-        logger.logkv('Loss/Value', v_loss)
-        logger.logkv('Loss/Entropy', entropy)
-        logger.logkv('Loss/KL', kl)
-        logger.logkv('Loss/DeltaPi', delta_p)
-        logger.logkv('Loss/DeltaV', delta_v)
-        logger.logkv('Loss/Dynamics', dyn_loss)
+            logger.logkv('Time/Updates', update)
+            logger.logkv('Time/Total Steps', total_steps)
+            logger.logkv('Time/FPS', fps)
+            logger.logkv('Time/Current', current)
+            logger.logkv('Time/Elapsed', delta_t)
+            logger.logkv('Reward/Mean', np.mean(episode_rewards))
+            logger.logkv('Reward/Median', np.median(episode_rewards))
+            logger.logkv('Reward/Min', np.min(episode_rewards))
+            logger.logkv('Reward/Max', np.max(episode_rewards))
+            logger.logkv('Loss/Total', tot_loss)
+            logger.logkv('Loss/Policy', pi_loss)
+            logger.logkv('Loss/Value', v_loss)
+            logger.logkv('Loss/Entropy', entropy)
+            logger.logkv('Loss/KL', kl)
+            logger.logkv('Loss/DeltaPi', delta_p)
+            logger.logkv('Loss/DeltaV', delta_v)
+            logger.logkv('Loss/Dynamics', dyn_loss)
 
-        if args.use_tensorboard:
-            logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, delta_t)
-            logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, delta_t)
-            logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, delta_t)
-            logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, delta_t)
-            logger.add_scalar('loss/total', tot_loss, total_steps, delta_t)
-            logger.add_scalar('loss/policy', pi_loss, total_steps, delta_t)
-            logger.add_scalar('loss/value', v_loss, total_steps, delta_t)
-            logger.add_scalar('loss/entropy', entropy, total_steps, delta_t)
-            logger.add_scalar('loss/kl', kl, total_steps, delta_t)
-            logger.add_scalar('loss/delta_p', delta_p, total_steps, delta_t)
-            logger.add_scalar('loss/delta_v', delta_v, total_steps, delta_t)
-            logger.add_scalar('loss/dynamics', dyn_loss, total_steps, delta_t)
+            if args.use_tensorboard:
+                logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, delta_t)
+                logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, delta_t)
+                logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, delta_t)
+                logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, delta_t)
+                logger.add_scalar('loss/total', tot_loss, total_steps, delta_t)
+                logger.add_scalar('loss/policy', pi_loss, total_steps, delta_t)
+                logger.add_scalar('loss/value', v_loss, total_steps, delta_t)
+                logger.add_scalar('loss/entropy', entropy, total_steps, delta_t)
+                logger.add_scalar('loss/kl', kl, total_steps, delta_t)
+                logger.add_scalar('loss/delta_p', delta_p, total_steps, delta_t)
+                logger.add_scalar('loss/delta_v', delta_v, total_steps, delta_t)
+                logger.add_scalar('loss/dynamics', dyn_loss, total_steps, delta_t)
 
-            if args.debug:
-                pass
+                if args.debug:
+                    pass
 
-        if update % args.print_freq == 0:
             logger.dumpkvs()
