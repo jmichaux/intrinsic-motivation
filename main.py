@@ -27,7 +27,7 @@ parser.add_argument('--log-dir', type=str, default=None)
 parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--clean-dir', action='store_true')
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--num-env-steps', type=int, default=int(1e5))
+parser.add_argument('--num-env-steps', type=int, default=int(1e6))
 parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
 # parser.add_argument('--num-updates', type=int, default=int(1e2))
@@ -109,7 +109,8 @@ if __name__ == '__main__':
 
     # start training
     start = time.time()
-    episode_rewards = deque(maxlen=10)
+    episode_rewards = deque(maxlen=100)
+    solved_episodes = deque(maxlen=100)
 
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
 
@@ -131,6 +132,7 @@ if __name__ == '__main__':
             for info in infos:
                 if 'episode' in info.keys():
                     episode_rewards.append(info['episode']['r'])
+                    solved_episodes.append(info['is_success'])
 
             # store experience
             agent.store_rollout(obs[1], action, action_log_probs,
@@ -159,6 +161,7 @@ if __name__ == '__main__':
             logger.logkv('Reward/Median', np.median(episode_rewards))
             logger.logkv('Reward/Min', np.min(episode_rewards))
             logger.logkv('Reward/Max', np.max(episode_rewards))
+            logger.logkv('Reward/Solved', np.mean(solved_episodes))
             logger.logkv('Loss/Total', tot_loss)
             logger.logkv('Loss/Policy', pi_loss)
             logger.logkv('Loss/Value', v_loss)
@@ -173,6 +176,7 @@ if __name__ == '__main__':
                 logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, delta_t)
                 logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, delta_t)
                 logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, delta_t)
+                logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, delta_t)
                 logger.add_scalar('loss/total', tot_loss, total_steps, delta_t)
                 logger.add_scalar('loss/policy', pi_loss, total_steps, delta_t)
                 logger.add_scalar('loss/value', v_loss, total_steps, delta_t)
