@@ -1,9 +1,10 @@
 import argparse
+from collections import deque
 import os
 import random
 import sys
 import time
-from collections import deque
+import yaml
 
 import numpy as np
 import gym
@@ -26,7 +27,7 @@ parser.add_argument('--log-dir', type=str, default=None)
 parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--clean-dir', action='store_true')
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--num-env-steps', type=int, default=int(1e6))
+parser.add_argument('--num-env-steps', type=int, default=int(1e5))
 parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
 # parser.add_argument('--num-updates', type=int, default=int(1e2))
@@ -43,7 +44,7 @@ parser.add_argument('--use-tensorboard', action='store_true')
 parser.add_argument('--pi-lr', type=float, default=7e-4)
 parser.add_argument('--v-lr', type=float, default=3e-3)
 parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--hidden-size', type=int, default=128)
+parser.add_argument('--hidden-size', type=int, default=64)
 parser.add_argument('--gamma', type=float, default=0.99)
 parser.add_argument('--use-gae', action='store_true')
 parser.add_argument('--gae-lambda', type=float, default=0.95)
@@ -61,7 +62,11 @@ if __name__ == '__main__':
                                         force_clean=args.clean_dir)
     else:
         log_dir = args.log_dir
-    logger.configure(log_dir, ['stdout', 'log'], tbX=args.use_tensorboard)
+    logger.configure(log_dir, ['stdout', 'log', 'csv'], tbX=args.use_tensorboard)
+
+    # save parameters
+    with open(os.path.join(log_dir,'params.yaml'), 'w') as f:
+            yaml.dump(args.__dict__, f, default_flow_style=False)
 
     # set device and random seeds
     device = torch.device("cuda:0" if args.cuda and torch.cuda.is_available() else "cpu")
