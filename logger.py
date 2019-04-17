@@ -7,6 +7,7 @@ from baselines.logger import configure as baselines_configure
 from tensorboardX import SummaryWriter
 import os
 
+
 def append_human_init(self, filename_or_file):
     if isinstance(filename_or_file, str):
         self.file = open(filename_or_file, 'at')
@@ -33,7 +34,8 @@ WRITER = None
 def configure(log_dir, format_strs=None, tbX=False, **kwargs):
     global WRITER
     if tbX:
-        WRITER = SummaryWriter(log_dir, **kwargs)
+        tb_dir = os.path.join(log_dir, 'tensorboard')
+        WRITER = SummaryWriter(tb_dir, **kwargs)
     else:
         WRITER = None
     baselines_configure(log_dir, format_strs)
