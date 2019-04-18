@@ -8,7 +8,7 @@ import torch.nn as nn
 
 BASEDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'logs')
 
-def create_log_dirs(exp_name, checkpoint=True, force_clean=False):
+def create_log_dirs(exp_name, checkpoint=False, tbx=False, force_clean=False):
     exp_dir = os.path.join(BASEDIR, exp_name)
     try:
         os.makedirs(exp_dir)
@@ -25,9 +25,16 @@ def create_log_dirs(exp_name, checkpoint=True, force_clean=False):
                     pass
     run_dir = 'run' + str(sum(os.path.isdir(os.path.abspath(os.path.join(exp_dir, i))) for i in os.listdir(exp_dir)))
     run_dir = os.path.join(exp_dir, run_dir)
+    # make base dir
     os.makedirs(run_dir)
+    # make monitor dir
+    os.makedirs(os.path.join(run_dir, 'monitor'))
+    # make checkpoint dir
     if checkpoint:
         os.makedirs(os.path.join(run_dir, 'checkpoint'))
+    # make tensorboard dir
+    if tbx:
+        os.makedirs(os.path.join(run_dir, 'tensorboard'))
     return run_dir
 
 def set_random_seeds(seed, cuda=True, debug=False):

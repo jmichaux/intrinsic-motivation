@@ -7,6 +7,7 @@ from baselines.logger import configure as baselines_configure
 from tensorboardX import SummaryWriter
 import os
 
+
 def append_human_init(self, filename_or_file):
     if isinstance(filename_or_file, str):
         self.file = open(filename_or_file, 'at')
@@ -33,7 +34,8 @@ WRITER = None
 def configure(log_dir, format_strs=None, tbX=False, **kwargs):
     global WRITER
     if tbX:
-        WRITER = SummaryWriter(log_dir, **kwargs)
+        tb_dir = os.path.join(log_dir, 'tensorboard')
+        WRITER = SummaryWriter(tb_dir, **kwargs)
     else:
         WRITER = None
     baselines_configure(log_dir, format_strs)
@@ -51,9 +53,9 @@ def add_scalars(main_tag, tag_scalar_dict, global_step=None, walltime=None):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
     WRITER.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
 
-def add_histogram(tag, values, global_step=None, bins='tensorflow', walltime=None, max_bins=None):
+def add_histogram(tag, values, global_step=None, bins='tensorflow'):#, walltime=None, max_bins=None):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
-    WRITER.add_histogram(tag, values, global_step, bins, walltime, max_bins)
+    WRITER.add_histogram(tag, values, global_step, bins)#, walltime, max_bins)
 
 def add_image(tag, img_tensor, global_step=None, walltime=None, dataformats='CHW'):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
