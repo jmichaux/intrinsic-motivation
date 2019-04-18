@@ -170,6 +170,10 @@ if __name__ == '__main__':
             logger.logkv('Loss/DeltaPi', delta_p)
             logger.logkv('Loss/DeltaV', delta_v)
             logger.logkv('Loss/Dynamics', dyn_loss)
+            logger.logkv('Value/Mean', np.mean(agent.rollouts.value_preds.cpu().data.numpy()))
+            logger.logkv('Value/Median', np.median(agent.rollouts.value_preds.cpu().data.numpy()))
+            logger.logkv('Value/Min', np.min(agent.rollouts.value_preds.cpu().data.numpy()))
+            logger.logkv('Value/Max', np.max(agent.rollouts.value_preds.cpu().data.numpy()))
 
             if args.use_tensorboard:
                 logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, delta_t)
@@ -185,10 +189,12 @@ if __name__ == '__main__':
                 logger.add_scalar('loss/delta_p', delta_p, total_steps, delta_t)
                 logger.add_scalar('loss/delta_v', delta_v, total_steps, delta_t)
                 logger.add_scalar('loss/dynamics', dyn_loss, total_steps, delta_t)
+                logger.add_scalar('value/mean', np.mean(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
+                logger.add_scalar('value/median', np.median(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
+                logger.add_scalar('value/min', np.min(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
+                logger.add_scalar('value/max', np.max(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
 
                 if args.debug:
-                    # logger.add_scalar('debug/actions', agent.rollouts.actions.mean().item(), total_steps, delta_t)
-                    # logger.add_scalar('debug/observations', agent.rollouts.obs.mean().item(), total_steps, delta_t)
                     logger.add_histogram('debug/actions', agent.rollouts.actions.cpu().data.numpy(), total_steps)
                     logger.add_histogram('debug/observations', agent.rollouts.obs.cpu().data.numpy(), total_steps)
 
