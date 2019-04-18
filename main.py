@@ -20,37 +20,37 @@ import logger
 
 parser = argparse.ArgumentParser(description='PPO')
 parser.add_argument('--experiment-name', type=str, default='RandomAgent')
-parser.add_argument('--env-id', type=str, default='FetchReachDense-v1')
-parser.add_argument('--add-intrinsic-reward', action='store_true')
-parser.add_argument('--share-optim', action='store_true')
-parser.add_argument('--log-dir', type=str, default=None)
-parser.add_argument('--log-interval', type=int, default=1)
-parser.add_argument('--clean-dir', action='store_true')
+parser.add_argument('--env-id', type=str, default='FetchReach-v1')
 parser.add_argument('--seed', type=int, default=1)
+parser.add_argument('--log-dir', type=str, default=None)
+parser.add_argument('--clean-dir', action='store_true')
+parser.add_argument('--log-interval', type=int, default=1)
+parser.add_argument('--checkpoint-interval', type=int, default=20)
+parser.add_argument('--eval-interval', type=int, default=100)
+parser.add_argument('--add-intrinsic-reward', action='store_true')
 parser.add_argument('--num-env-steps', type=int, default=int(1e6))
 parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
-# parser.add_argument('--num-updates', type=int, default=int(1e2))
 parser.add_argument('--ppo-epochs', type=int, default=10)
 parser.add_argument('--dyn-epochs', type=int, default=5)
 parser.add_argument('--num-mini-batch', type=int, default=32)
+parser.add_argument('--pi-lr', type=float, default=7e-4)
+parser.add_argument('--v-lr', type=float, default=3e-3)
+parser.add_argument('--dyn-lr', type=float, default=1e-3)
+parser.add_argument('--hidden-size', type=int, default=64)
 parser.add_argument('--clip-param', type=float, default=0.2)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
-parser.add_argument('--use-clipped-value-loss', action='store_true')
-parser.add_argument('--use-tensorboard', action='store_true')
-parser.add_argument('--pi-lr', type=float, default=7e-4)
-parser.add_argument('--v-lr', type=float, default=3e-3)
-parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--hidden-size', type=int, default=64)
 parser.add_argument('--gamma', type=float, default=0.99)
 parser.add_argument('--use-gae', action='store_true')
 parser.add_argument('--gae-lambda', type=float, default=0.95)
+parser.add_argument('--share-optim', action='store_true')
+parser.add_argument('--use-clipped-value-loss', action='store_true')
+parser.add_argument('--use-tensorboard', action='store_true')
 parser.add_argument('--cuda', action='store_false', default=True, help='enables CUDA training')
 parser.add_argument('--debug', action='store_true')
-parser.add_argument('--eval-interval', type=int, default=100)
 
 if __name__ == '__main__':
     # parse arguments
@@ -78,7 +78,8 @@ if __name__ == '__main__':
                          args.gamma, log_dir, device, False)
 
     # create agent
-    agent = PPO(envs.observation_space,
+    agent = PPO(log_dir,
+                envs.observation_space,
                 envs.action_space,
                 actor_critic=ActorCritic,
                 dynamics_model=FwdDyn,
@@ -102,12 +103,14 @@ if __name__ == '__main__':
                 share_optim=args.share_optim,
                 debug=args.debug)
 
+
     # reset envs and initialize rollouts
     obs = envs.reset()
     agent.rollouts.obs[0].copy_(obs[1])
     agent.rollouts.to(device)
 
     # start training
+    agent.train()
     start = time.time()
     episode_rewards = deque(maxlen=100)
     solved_episodes = deque(maxlen=100)
@@ -213,3 +216,7 @@ if __name__ == '__main__':
                     logger.add_scalar('debug/param/weight_norm', total_weight_norm, total_steps, delta_t)
 
             logger.dumpkvs()
+
+            # checkpoint model
+            if (update + 1) % args.checkpoint_interval == 0:
+                agent.checkpoint()
