@@ -219,4 +219,4 @@ if __name__ == '__main__':
 
             # checkpoint model
             if (update + 1) % args.checkpoint_interval == 0:
-                agent.checkpoint()
+                agent.save_checkpoint()
