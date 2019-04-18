@@ -53,9 +53,9 @@ def add_scalars(main_tag, tag_scalar_dict, global_step=None, walltime=None):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
     WRITER.add_scalars(main_tag, tag_scalar_dict, global_step, walltime)
 
-def add_histogram(tag, values, global_step=None, bins='tensorflow', walltime=None, max_bins=None):
+def add_histogram(tag, values, global_step=None, bins='tensorflow'):#, walltime=None, max_bins=None):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
-    WRITER.add_histogram(tag, values, global_step, bins, walltime, max_bins)
+    WRITER.add_histogram(tag, values, global_step, bins)#, walltime, max_bins)
 
 def add_image(tag, img_tensor, global_step=None, walltime=None, dataformats='CHW'):
     assert WRITER is not None, "call configure to initialize SummaryWriter"
