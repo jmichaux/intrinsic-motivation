@@ -187,6 +187,23 @@ if __name__ == '__main__':
                 logger.add_scalar('loss/dynamics', dyn_loss, total_steps, delta_t)
 
                 if args.debug:
-                    pass
+                    # logger.add_scalar('debug/actions', agent.rollouts.actions.mean().item(), total_steps, delta_t)
+                    # logger.add_scalar('debug/observations', agent.rollouts.obs.mean().item(), total_steps, delta_t)
+                    logger.add_histogram('debug/actions', agent.rollouts.actions.cpu().data.numpy(), total_steps)
+                    logger.add_histogram('debug/observations', agent.rollouts.obs.cpu().data.numpy(), total_steps)
+
+                    total_grad_norm = 0
+                    total_weight_norm = 0
+                    for name, param in agent.actor_critic.named_parameters():
+                        logger.add_histogram('debug/param/{}'.format(name), param.cpu().data.numpy(), total_steps)
+                        grad_norm = param.grad.data.norm(2)
+                        weight_norm = param.data.norm(2)
+                        total_grad_norm += grad_norm.item() ** 2
+                        total_weight_norm += weight_norm.item() ** 2
+
+                    total_grad_norm = total_grad_norm ** (1. / 2)
+                    total_weight_norm = total_weight_norm ** (1. / 2)
+                    logger.add_scalar('debug/param/grad_norm', total_grad_norm, total_steps, delta_t)
+                    logger.add_scalar('debug/param/weight_norm', total_weight_norm, total_steps, delta_t)
 
             logger.dumpkvs()
