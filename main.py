@@ -151,7 +151,7 @@ if __name__ == '__main__':
         # log data
         if update % args.log_interval == 0:
             current = time.time()
-            delta_t = current - start
+            elapsed = current - start
             total_steps = (update + 1) * args.num_processes * args.num_steps
             fps =int(total_steps / (current - start))
 
@@ -159,7 +159,8 @@ if __name__ == '__main__':
             logger.logkv('Time/Total Steps', total_steps)
             logger.logkv('Time/FPS', fps)
             logger.logkv('Time/Current', current)
-            logger.logkv('Time/Elapsed', delta_t)
+            logger.logkv('Time/Elapsed', elapsed)
+            logger.logkv('Time/Epoch', elapsed)
             logger.logkv('Reward/Mean', np.mean(episode_rewards))
             logger.logkv('Reward/Median', np.median(episode_rewards))
             logger.logkv('Reward/Min', np.min(episode_rewards))
@@ -179,23 +180,23 @@ if __name__ == '__main__':
             logger.logkv('Value/Max', np.max(agent.rollouts.value_preds.cpu().data.numpy()))
 
             if args.use_tensorboard:
-                logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, delta_t)
-                logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, delta_t)
-                logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, delta_t)
-                logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, delta_t)
-                logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, delta_t)
-                logger.add_scalar('loss/total', tot_loss, total_steps, delta_t)
-                logger.add_scalar('loss/policy', pi_loss, total_steps, delta_t)
-                logger.add_scalar('loss/value', v_loss, total_steps, delta_t)
-                logger.add_scalar('loss/entropy', entropy, total_steps, delta_t)
-                logger.add_scalar('loss/kl', kl, total_steps, delta_t)
-                logger.add_scalar('loss/delta_p', delta_p, total_steps, delta_t)
-                logger.add_scalar('loss/delta_v', delta_v, total_steps, delta_t)
-                logger.add_scalar('loss/dynamics', dyn_loss, total_steps, delta_t)
-                logger.add_scalar('value/mean', np.mean(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
-                logger.add_scalar('value/median', np.median(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
-                logger.add_scalar('value/min', np.min(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
-                logger.add_scalar('value/max', np.max(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, delta_t)
+                logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, elapsed)
+                logger.add_scalar('loss/total', tot_loss, total_steps, elapsed)
+                logger.add_scalar('loss/policy', pi_loss, total_steps, elapsed)
+                logger.add_scalar('loss/value', v_loss, total_steps, elapsed)
+                logger.add_scalar('loss/entropy', entropy, total_steps, elapsed)
+                logger.add_scalar('loss/kl', kl, total_steps, elapsed)
+                logger.add_scalar('loss/delta_p', delta_p, total_steps, elapsed)
+                logger.add_scalar('loss/delta_v', delta_v, total_steps, elapsed)
+                logger.add_scalar('loss/dynamics', dyn_loss, total_steps, elapsed)
+                logger.add_scalar('value/mean', np.mean(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, elapsed)
+                logger.add_scalar('value/median', np.median(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, elapsed)
+                logger.add_scalar('value/min', np.min(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, elapsed)
+                logger.add_scalar('value/max', np.max(agent.rollouts.value_preds.cpu().data.numpy()), total_steps, elapsed)
 
                 if args.debug:
                     logger.add_histogram('debug/actions', agent.rollouts.actions.cpu().data.numpy(), total_steps)
@@ -212,8 +213,8 @@ if __name__ == '__main__':
 
                     total_grad_norm = total_grad_norm ** (1. / 2)
                     total_weight_norm = total_weight_norm ** (1. / 2)
-                    logger.add_scalar('debug/param/grad_norm', total_grad_norm, total_steps, delta_t)
-                    logger.add_scalar('debug/param/weight_norm', total_weight_norm, total_steps, delta_t)
+                    logger.add_scalar('debug/param/grad_norm', total_grad_norm, total_steps, elapsed)
+                    logger.add_scalar('debug/param/weight_norm', total_weight_norm, total_steps, elapsed)
 
             logger.dumpkvs()
 
