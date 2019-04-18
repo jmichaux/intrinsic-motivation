@@ -248,7 +248,7 @@ class PPO():
 
         return total_loss_epoch, policy_loss_epoch, value_loss_epoch, dynamics_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, path=None):
         # create checkpoint dict
         checkpoint = {
             'share_optim': self.share_optim,
@@ -269,7 +269,10 @@ class PPO():
                 checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
                 checkpoint['dynamics_optimizer'] = self.dynamics_optimizer.state_dict()
 
-        torch.save(checkpoint, self.checkpoint_path)
+        if path is None:
+            torch.save(checkpoint, self.checkpoint_path)
+        else:
+            torch.save(checkpoint, path)
 
     def load_checkpoint(self, path):
         # load checkpoint
