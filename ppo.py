@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 import torch.optim as optim
@@ -6,6 +7,7 @@ from rollouts import Rollouts
 
 class PPO():
     def __init__(self,
+                 log_dir,
                  observation_space,
                  action_space,
                  actor_critic,
@@ -30,6 +32,9 @@ class PPO():
                  device='cpu',
                  share_optim=False,
                  debug=False):
+
+        # setup logging
+        self.checkpoint_path = os.path.join(log_dir, 'checkpoint.pth')
 
         # ppo hyperparameters
         self.clip_param = clip_param
@@ -81,6 +86,16 @@ class PPO():
                                  observation_space.shape,
                                  action_space,
                                  device)
+
+    def train(self):
+        self.actor_critic.train()
+        if self.add_intrinsic_reward:
+            self.dynamics_model.train()
+
+    def eval(self):
+        self.actor_critic.eval()
+        if self.add_intrinsic_reward:
+            self.dynamics_model.eval()
 
     def select_action(self, step):
         with torch.no_grad():
@@ -232,3 +247,41 @@ class PPO():
             delta_v = value_loss_new - value_loss_old
 
         return total_loss_epoch, policy_loss_epoch, value_loss_epoch, dynamics_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
+
+    def save_checkpoint(self):
+        checkpoint = {
+            'actor_critic': self.actor_critic.state_dict(),
+            'share_optim': self.share_optim,
+            'add_intrinsic_reward': self.add_intrinsic_reward}
+        if self.share_optim:
+            checkpoint['optimizer'] = self.optimizer.state_dict()
+        else:
+            checkpoint['policy_optimizer'] = self.policy_optimizer.state_dict()
+            checkpoint['value_fn_optimizer'] = self.value_fn_optimizer.state_dict()
+        if self.add_intrinsic_reward:
+            checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
+            checkpoint['dynamics_optimizer'] = self.dynamics_optimizer.state_dict()
+        torch.save(checkpoint, self.checkpoint_path)
+
+    def load_checkpoint(self, path):
+        checkpoint = torch.load(path)
+        # load models
+        self.actor_critic.load_state_dict(checkpoint['actor_critic'])
+        if self.add_intrinsic_reward:
+            self.dynamics_model.load_state_dict(checkpoint['dynamics_model'])
+        # load optimizer(s)
+        if self.share_optim:
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+        else:
+            self.policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
+            self.value_fn_optimizer.load_state_dict(checkpoint['value_fn_optimizer'])
+            if self.add_intrinsic_reward:
+                self.dynamics_optimizer.load_state_dict(checkpoint['dynamics_optimizer'])
+
+    def load_models(self, path):
+        checkpoint = torch.load(path)
+        # load models
+        self.actor_critic.load_state_dict(checkpoint['actor_critic'])
+        if self.add_intrinsic_reward:
+            self.dynamics_model.load_state_dict(checkpoint['dynamics_model'])
+        del checkpoint
