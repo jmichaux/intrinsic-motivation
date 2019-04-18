@@ -249,26 +249,39 @@ class PPO():
         return total_loss_epoch, policy_loss_epoch, value_loss_epoch, dynamics_loss_epoch, entropy_epoch, kl_epoch, delta_p.item(), delta_v.item()
 
     def save_checkpoint(self):
+        # create checkpoint dict
         checkpoint = {
-            'actor_critic': self.actor_critic.state_dict(),
             'share_optim': self.share_optim,
             'add_intrinsic_reward': self.add_intrinsic_reward}
+
+        # save models
+        checkpoint['actor_critic'] =  self.actor_critic.state_dict()
+        if self.add_intrinsic_reward:
+            checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
+
+        # save optimizer(s)
         if self.share_optim:
             checkpoint['optimizer'] = self.optimizer.state_dict()
         else:
             checkpoint['policy_optimizer'] = self.policy_optimizer.state_dict()
             checkpoint['value_fn_optimizer'] = self.value_fn_optimizer.state_dict()
-        if self.add_intrinsic_reward:
-            checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
-            checkpoint['dynamics_optimizer'] = self.dynamics_optimizer.state_dict()
+            if self.add_intrinsic_reward:
+                checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
+                checkpoint['dynamics_optimizer'] = self.dynamics_optimizer.state_dict()
+
         torch.save(checkpoint, self.checkpoint_path)
 
     def load_checkpoint(self, path):
+        # load checkpoint
         checkpoint = torch.load(path)
+        self.share_optim = checkpoint['share_optim']
+        self.add_intrinsic_reward = checkpoint['add_intrinsic_reward']
+
         # load models
         self.actor_critic.load_state_dict(checkpoint['actor_critic'])
         if self.add_intrinsic_reward:
             self.dynamics_model.load_state_dict(checkpoint['dynamics_model'])
+
         # load optimizer(s)
         if self.share_optim:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
