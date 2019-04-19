@@ -34,7 +34,7 @@ class Rollouts(object):
             self.device = device
         else:
             self.device = 'cpu'
-        self.to()
+        self.to(self.device)
 
         self.num_steps = num_steps
         self.step = 0
