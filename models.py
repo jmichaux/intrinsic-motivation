@@ -1,5 +1,7 @@
 import numpy as np
 
+import gin
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,7 +11,7 @@ import torch.distributions as D
 from distributions import DiagGaussian
 from utils import *
 
-
+@gin.configurable('actor_critic', whitelist=['hidden_size'])
 class ActorCritic(nn.Module):
     def __init__(self, num_inputs, hidden_size, num_outputs):
         super(ActorCritic, self).__init__()
@@ -39,6 +41,7 @@ class ActorCritic(nn.Module):
     def get_value(self, obs):
         return self.value_fn(obs)
 
+@gin.configurable
 class Policy(nn.Module):
     def __init__(self, num_inputs, hidden_size, num_outputs):
         super(Policy, self).__init__()
@@ -60,15 +63,15 @@ class ValueFn(nn.Module):
 
         # critic
         self.base = nn.Sequential(
-            init_tanh(nn.Linear(num_inputs, hidden_size)), nn.Tanh(),
-            # init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
-            init_tanh(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
+            init_relu(nn.Linear(num_inputs, hidden_size)), nn.ReLU(),
+            init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU())
+            # init_tanh(nn.Linear(hidden_size, hidden_size)), nn.Tanh())
         self.head = init_(nn.Linear(hidden_size, 1))
 
     def forward(self, x):
         return self.head(self.base(x))
 
-
+@gin.configurable
 class FwdDyn(nn.Module):
     def __init__(self, num_inputs, hidden_size, num_outputs):
         super(FwdDyn, self).__init__()
@@ -80,3 +83,15 @@ class FwdDyn(nn.Module):
     def forward(self, state, action):
         feature = torch.cat((state, action), -1)
         return self.base(feature)
+
+@gin.configurable
+class MLP(nn.Module):
+    def __init__(self,
+                 num_inputs,
+                 hidden_sizes,
+                 num_outputs,
+                 hidden_init=None,
+                 hidden_activation=None,
+                 output_init=None,
+                 output_activation=None):
+        super(MLP, self).__init__()
