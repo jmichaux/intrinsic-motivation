@@ -20,7 +20,7 @@ import logger
 
 parser = argparse.ArgumentParser(description='PPO')
 parser.add_argument('--experiment-name', type=str, default='RandomAgent')
-parser.add_argument('--env-id', type=str, default='FetchReach-v1')
+parser.add_argument('--env-id', type=str, default='FetchPush-v1')
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--log-dir', type=str, default=None)
 parser.add_argument('--clean-dir', action='store_true')
@@ -28,7 +28,7 @@ parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--checkpoint-interval', type=int, default=20)
 parser.add_argument('--eval-interval', type=int, default=100)
 parser.add_argument('--add-intrinsic-reward', action='store_true')
-parser.add_argument('--num-env-steps', type=int, default=int(1e6))
+parser.add_argument('--num-env-steps', type=int, default=int(1e7))
 parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
 parser.add_argument('--ppo-epochs', type=int, default=10)
@@ -37,16 +37,17 @@ parser.add_argument('--num-mini-batch', type=int, default=32)
 parser.add_argument('--pi-lr', type=float, default=7e-4)
 parser.add_argument('--v-lr', type=float, default=3e-3)
 parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--hidden-size', type=int, default=64)
-parser.add_argument('--clip-param', type=float, default=0.2)
+parser.add_argument('--hidden-size', type=int, default=256)
+parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
-parser.add_argument('--gamma', type=float, default=0.99)
+parser.add_argument('--gamma', type=float, default=0.9)
 parser.add_argument('--use-gae', action='store_true')
 parser.add_argument('--gae-lambda', type=float, default=0.95)
 parser.add_argument('--share-optim', action='store_true')
+parser.add_argument('--use-linear-lr-decay', action='store_true')
 parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
 parser.add_argument('--cuda', action='store_false', default=True, help='enables CUDA training')
@@ -118,6 +119,24 @@ if __name__ == '__main__':
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
 
     for update in range(num_updates):
+        # decrease learning rate linearly
+        if args.use_linear_lr_decay:
+            if args.share_optim:
+                utils.update_linear_schedule(optimizer=agent.optimizer,
+                                             update=update,
+                                             total_num_updates=num_updates,
+                                             initial_lr=args.pi_lr)
+            else:
+                utils.update_linear_schedule(optimizer=agent.policy_optimizer,
+                                             update=update,
+                                             total_num_updates=num_updates,
+                                             initial_lr=args.pi_lr)
+
+                utils.update_linear_schedule(optimizer=agent.value_fn_optimizer,
+                                             update=update,
+                                             total_num_updates=num_updates,
+                                             initial_lr=args.v_lr)
+
         for step in range(args.num_steps):
             # select action
             value, action, action_log_probs = agent.select_action(step)

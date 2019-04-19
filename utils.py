@@ -69,3 +69,9 @@ init_relu = lambda m: init(m, nn.init.orthogonal_,lambda x: nn.init.
 
 init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                        constant_(x, 0))
+
+def update_linear_schedule(optimizer, update, total_num_updates, initial_lr):
+    """Decreases the learning rate linearly"""
+    lr = initial_lr - (initial_lr * (update / float(total_num_updates)))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
