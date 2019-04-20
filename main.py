@@ -52,6 +52,7 @@ parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
 parser.add_argument('--cuda', action='store_false', default=True, help='enables CUDA training')
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--render', action='store_true')
 
 if __name__ == '__main__':
     # parse arguments
@@ -76,7 +77,7 @@ if __name__ == '__main__':
 
     # setup environment
     envs = make_vec_envs(args.env_id, args.seed, args.num_processes,
-                         args.gamma, log_dir, device, False)
+                         None, log_dir, device, False)
 
     # create agent
     agent = PPO(log_dir,
@@ -114,6 +115,7 @@ if __name__ == '__main__':
     agent.train()
     start = time.time()
     episode_rewards = deque(maxlen=100)
+    intrinsic_rewards = deque(maxlen=100 * args.num_processes)
     solved_episodes = deque(maxlen=100)
 
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
@@ -138,6 +140,10 @@ if __name__ == '__main__':
                                              initial_lr=args.v_lr)
 
         for step in range(args.num_steps):
+            # render
+            if args.render:
+                envs.render()
+
             # select action
             value, action, action_log_probs = agent.select_action(step)
 
@@ -146,9 +152,10 @@ if __name__ == '__main__':
 
             # get intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = agent.compute_intrinsic_reward(step)
+                intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
+            intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
 
             # get episode reward
             for info in infos:
@@ -185,6 +192,10 @@ if __name__ == '__main__':
             logger.logkv('Reward/Min', np.min(episode_rewards))
             logger.logkv('Reward/Max', np.max(episode_rewards))
             logger.logkv('Reward/Solved', np.mean(solved_episodes))
+            logger.logkv('Intrinsic/Mean', np.mean(intrinsic_rewards))
+            logger.logkv('Intrinsic/Median', np.median(intrinsic_rewards))
+            logger.logkv('Intrinsic/Min', np.min(intrinsic_rewards))
+            logger.logkv('Intrinsic/Max', np.max(intrinsic_rewards))
             logger.logkv('Loss/Total', tot_loss)
             logger.logkv('Loss/Policy', pi_loss)
             logger.logkv('Loss/Value', v_loss)
@@ -204,6 +215,10 @@ if __name__ == '__main__':
                 logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, elapsed)
                 logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, elapsed)
                 logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, elapsed)
+                logger.add_scalar('intrinsic/mean', np.mean(intrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('intrinsic/median', np.median(intrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('intrinsic/min', np.min(intrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('intrinsic/max', np.max(intrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('loss/total', tot_loss, total_steps, elapsed)
                 logger.add_scalar('loss/policy', pi_loss, total_steps, elapsed)
                 logger.add_scalar('loss/value', v_loss, total_steps, elapsed)
@@ -220,6 +235,10 @@ if __name__ == '__main__':
                 if args.debug:
                     logger.add_histogram('debug/actions', agent.rollouts.actions.cpu().data.numpy(), total_steps)
                     logger.add_histogram('debug/observations', agent.rollouts.obs.cpu().data.numpy(), total_steps)
+                    logger.logkv('Action/Mean', np.mean(agent.rollouts.actions.cpu().data.numpy()))
+                    logger.logkv('Action/Median', np.median(agent.rollouts.actions.cpu().data.numpy()))
+                    logger.logkv('Action/Min', np.min(agent.rollouts.actions.cpu().data.numpy()))
+                    logger.logkv('Action/Max', np.max(agent.rollouts.actions.cpu().data.numpy()))
 
                     total_grad_norm = 0
                     total_weight_norm = 0

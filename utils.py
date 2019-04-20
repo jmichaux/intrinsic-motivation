@@ -57,9 +57,10 @@ def init(module, weight_init, bias_init, gain=1):
     bias_init(module.bias.data)
     return module
 
-def compute_intrinsic_rewards(model, states, actions, next_states):
-    next_states_preds = model(states, actions)
-    return 0.5 * torch.norm(next_states-next_states_preds, p=2, dim=-1).unsqueeze(-1)
+def compute_intrinsic_rewards(model, obs, action, next_obs, eta=0.75):
+    next_obs_preds = model(obs, action)
+    # return 0.5 * eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
+    return 0.5 * eta * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
 
 init_tanh = lambda m: init(m, nn.init.orthogonal_,lambda x: nn.init.
                        constant_(x, 0), 5.0/3)
