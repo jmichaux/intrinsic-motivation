@@ -25,6 +25,7 @@ class PPO():
                  value_coef=0.5,
                  entropy_coef=0.01,
                  dyn_coef=0.5,
+                 eta = 0.75,
                  grad_norm_max=0.5,
                  use_clipped_value_loss=True,
                  use_tensorboard=True,
@@ -47,7 +48,7 @@ class PPO():
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
         self.dyn_coef = dyn_coef
-
+        self.eta = eta
         # clip values
         self.grad_norm_max = grad_norm_max
         self.use_clipped_value_loss = use_clipped_value_loss
@@ -125,7 +126,8 @@ class PPO():
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
             next_obs_preds = self.dynamics_model(obs, action)
-            return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1)
+            # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
+            return 0.5 * self.eta * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
 
     def update(self):
         tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v = self._update()
