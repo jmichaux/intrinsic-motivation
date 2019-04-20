@@ -65,7 +65,7 @@ class PPO():
         if self.add_intrinsic_reward:
             dynamics_dim = observation_space.shape[0] + action_space.shape[0]
             self.dynamics_model = dynamics_model(num_inputs=dynamics_dim,
-                                                 hidden_size=64,
+                                                 hidden_size=hidden_size,
                                                  num_outputs=observation_space.shape[0])
             self.dynamics_model.to(device)
 
@@ -174,7 +174,8 @@ class PPO():
 
     def compute_dynamics_loss(self, obs, action, next_obs):
         next_obs_preds = self.dynamics_model(obs, action)
-        return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1).mean()
+        return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
+        # return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1).mean()
 
     def _update(self):
         # compute and normalize advantages
