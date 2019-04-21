@@ -25,7 +25,6 @@ class PPO():
                  value_coef=0.5,
                  entropy_coef=0.01,
                  dyn_coef=0.5,
-                 intrinsic_coef = 0.01,
                  grad_norm_max=0.5,
                  use_clipped_value_loss=True,
                  use_tensorboard=True,
@@ -48,7 +47,7 @@ class PPO():
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
         self.dyn_coef = dyn_coef
-        self.intrinsic_coef = intrinsic_coef
+
         # clip values
         self.grad_norm_max = grad_norm_max
         self.use_clipped_value_loss = use_clipped_value_loss
@@ -120,11 +119,13 @@ class PPO():
             self.rollouts.rewards += self.rollouts.intrinsic_rewards
         self.rollouts.compute_returns(next_value, gamma, use_gae, gae_lambda)
 
-    def compute_intrinsic_reward(self, step):
+    def compute_intrinsic_reward(self, step, predict_delta_obs=False):
         with torch.no_grad():
             obs = self.rollouts.obs[step]
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
+            if predict_delta_obs:
+                next_obs = (next_obs - obs)
             next_obs_preds = self.dynamics_model(obs, action)
             # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
             return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
