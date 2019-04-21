@@ -41,6 +41,7 @@ parser.add_argument('--hidden-size', type=int, default=256)
 parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
+parser.add_argument('--intrinsic-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--gamma', type=float, default=0.9)
@@ -97,6 +98,7 @@ if __name__ == '__main__':
                 clip_param=args.clip_param,
                 value_coef=args.value_coef,
                 entropy_coef=args.entropy_coef,
+                intrinsic_coef=args.intrinsic_coef,
                 grad_norm_max=args.grad_norm_max,
                 use_clipped_value_loss=True,
                 use_tensorboard=args.use_tensorboard,
@@ -153,7 +155,8 @@ if __name__ == '__main__':
 
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
+                # intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
+                intrinsic_reward = agent.compute_intrinsic_reward(step)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
 
@@ -171,6 +174,8 @@ if __name__ == '__main__':
         #     if 'episode' in info.keys():
         #         extrinsic_rewards.append(info['episode']['r'])
         #         solved_episodes.append(info['is_success'])
+
+        solved_episodes.extend(done)
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
