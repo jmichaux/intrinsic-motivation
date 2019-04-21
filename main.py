@@ -156,7 +156,7 @@ if __name__ == '__main__':
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
                 # intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
-                intrinsic_reward = agent.compute_intrinsic_reward(step)
+                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
 

@@ -127,7 +127,7 @@ class PPO():
             next_obs = self.rollouts.obs[step + 1]
             next_obs_preds = self.dynamics_model(obs, action)
             # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
-            return 0.5 * self.intrinsic_coef * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
+            return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
 
     def update(self):
         tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v = self._update()
