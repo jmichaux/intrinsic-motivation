@@ -238,10 +238,12 @@ class PPO():
 
         num_updates = (self.ppo_epochs + 1) * self.num_mini_batch
         total_loss_epoch /= num_updates
-        value_loss_epoch /= num_updates
         policy_loss_epoch /= num_updates
+        value_loss_epoch /= num_updates
+        dynamics_loss_epoch /= num_updates
         entropy_epoch /= num_updates
         kl_epoch /= num_updates
+
 
         # policy and value losses after gradient update
         with torch.no_grad():
