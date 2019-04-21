@@ -41,6 +41,7 @@ parser.add_argument('--hidden-size', type=int, default=256)
 parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
+parser.add_argument('--intrinsic-coef', type=float, default=0.01)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--gamma', type=float, default=0.9)
@@ -97,6 +98,7 @@ if __name__ == '__main__':
                 clip_param=args.clip_param,
                 value_coef=args.value_coef,
                 entropy_coef=args.entropy_coef,
+                intrinsic_coef=args.intrinsic_coef,
                 grad_norm_max=args.grad_norm_max,
                 use_clipped_value_loss=True,
                 use_tensorboard=args.use_tensorboard,
@@ -114,9 +116,10 @@ if __name__ == '__main__':
     # start training
     agent.train()
     start = time.time()
-    episode_rewards = deque(maxlen=100)
-    intrinsic_rewards = deque(maxlen=100 * args.num_processes)
-    solved_episodes = deque(maxlen=100)
+
+    extrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
+    intrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
+    solved_episodes = deque(maxlen=args.num_processes)
 
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
 
@@ -150,23 +153,29 @@ if __name__ == '__main__':
             # take a step in the environment
             obs, reward, done, infos = envs.step(action)
 
-            # get intrinsic reward
+            # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
+                # intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
+                intrinsic_reward = agent.compute_intrinsic_reward(step)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
-            intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
 
-            # get episode reward
-            for info in infos:
-                if 'episode' in info.keys():
-                    episode_rewards.append(info['episode']['r'])
-                    solved_episodes.append(info['is_success'])
+            # keep step rewards
+            intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
+            extrinsic_rewards.extend(list(reward.numpy().reshape(-1)))
 
             # store experience
             agent.store_rollout(obs[1], action, action_log_probs,
                                 value, reward, intrinsic_reward,
                                 done)
+
+        # # get final episode rewards
+        # for info in infos:
+        #     if 'episode' in info.keys():
+        #         extrinsic_rewards.append(info['episode']['r'])
+        #         solved_episodes.append(info['is_success'])
+
+        solved_episodes.extend(done)
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
@@ -187,11 +196,11 @@ if __name__ == '__main__':
             logger.logkv('Time/Current', current)
             logger.logkv('Time/Elapsed', elapsed)
             logger.logkv('Time/Epoch', elapsed)
-            logger.logkv('Reward/Mean', np.mean(episode_rewards))
-            logger.logkv('Reward/Median', np.median(episode_rewards))
-            logger.logkv('Reward/Min', np.min(episode_rewards))
-            logger.logkv('Reward/Max', np.max(episode_rewards))
-            logger.logkv('Reward/Solved', np.mean(solved_episodes))
+            logger.logkv('Extrinsic/Mean', np.mean(extrinsic_rewards))
+            logger.logkv('Extrinsic/Median', np.median(extrinsic_rewards))
+            logger.logkv('Extrinsic/Min', np.min(extrinsic_rewards))
+            logger.logkv('Extrinsic/Max', np.max(extrinsic_rewards))
+            logger.logkv('Episodes/Solved', np.mean(solved_episodes))
             logger.logkv('Intrinsic/Mean', np.mean(intrinsic_rewards))
             logger.logkv('Intrinsic/Median', np.median(intrinsic_rewards))
             logger.logkv('Intrinsic/Min', np.min(intrinsic_rewards))
@@ -210,10 +219,10 @@ if __name__ == '__main__':
             logger.logkv('Value/Max', np.max(agent.rollouts.value_preds.cpu().data.numpy()))
 
             if args.use_tensorboard:
-                logger.add_scalar('reward/mean', np.mean(episode_rewards), total_steps, elapsed)
-                logger.add_scalar('reward/median', np.median(episode_rewards), total_steps, elapsed)
-                logger.add_scalar('reward/min', np.min(episode_rewards), total_steps, elapsed)
-                logger.add_scalar('reward/max', np.max(episode_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/mean', np.mean(extrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/median', np.median(extrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/min', np.min(extrinsic_rewards), total_steps, elapsed)
+                logger.add_scalar('reward/max', np.max(extrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, elapsed)
                 logger.add_scalar('intrinsic/mean', np.mean(intrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('intrinsic/median', np.median(intrinsic_rewards), total_steps, elapsed)
