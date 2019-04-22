@@ -34,20 +34,21 @@ parser.add_argument('--num-steps', type=int, default=2048)
 parser.add_argument('--ppo-epochs', type=int, default=10)
 parser.add_argument('--dyn-epochs', type=int, default=5)
 parser.add_argument('--num-mini-batch', type=int, default=32)
-parser.add_argument('--pi-lr', type=float, default=7e-4)
-parser.add_argument('--v-lr', type=float, default=3e-3)
+parser.add_argument('--pi-lr', type=float, default=1e-4)
+parser.add_argument('--v-lr', type=float, default=1e-3)
 parser.add_argument('--dyn-lr', type=float, default=1e-3)
-parser.add_argument('--hidden-size', type=int, default=256)
+parser.add_argument('--hidden-size', type=int, default=128)
 parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
-parser.add_argument('--intrinsic-coef', type=float, default=0.01)
+parser.add_argument('--intrinsic-coef', type=float, default=0.02)
 parser.add_argument('--grad-norm-max', type=float, default=0.5)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--gamma', type=float, default=0.9)
 parser.add_argument('--use-gae', action='store_true')
 parser.add_argument('--gae-lambda', type=float, default=0.95)
 parser.add_argument('--share-optim', action='store_true')
+parser.add_argument('--predict-delta-obs', action='store_true')
 parser.add_argument('--use-linear-lr-decay', action='store_true')
 parser.add_argument('--use-clipped-value-loss', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
@@ -98,7 +99,6 @@ if __name__ == '__main__':
                 clip_param=args.clip_param,
                 value_coef=args.value_coef,
                 entropy_coef=args.entropy_coef,
-                intrinsic_coef=args.intrinsic_coef,
                 grad_norm_max=args.grad_norm_max,
                 use_clipped_value_loss=True,
                 use_tensorboard=args.use_tensorboard,
@@ -117,9 +117,14 @@ if __name__ == '__main__':
     agent.train()
     start = time.time()
 
-    extrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
-    intrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
-    solved_episodes = deque(maxlen=args.num_processes)
+    # extrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
+    # intrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
+    # solved_episodes = deque(maxlen=args.num_processes)
+
+    extrinsic_rewards = deque(maxlen=100)
+    episode_length = deque(maxlen=100)
+    intrinsic_rewards = deque(maxlen=100)
+    solved_episodes = deque(maxlen=100)
 
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
 
@@ -155,27 +160,23 @@ if __name__ == '__main__':
 
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                # intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
-                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step)
+                intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
+                # intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
-
-            # keep step rewards
             intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
-            extrinsic_rewards.extend(list(reward.numpy().reshape(-1)))
 
             # store experience
             agent.store_rollout(obs[1], action, action_log_probs,
                                 value, reward, intrinsic_reward,
                                 done)
 
-        # # get final episode rewards
-        # for info in infos:
-        #     if 'episode' in info.keys():
-        #         extrinsic_rewards.append(info['episode']['r'])
-        #         solved_episodes.append(info['is_success'])
-
-        solved_episodes.extend(done)
+            # get final episode rewards
+            for info in infos:
+                if 'episode' in info.keys():
+                    extrinsic_rewards.append(info['episode']['r'])
+                    episode_length.append(info['episode']['l'])
+                    solved_episodes.append(info['is_success'])
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
@@ -201,6 +202,7 @@ if __name__ == '__main__':
             logger.logkv('Extrinsic/Min', np.min(extrinsic_rewards))
             logger.logkv('Extrinsic/Max', np.max(extrinsic_rewards))
             logger.logkv('Episodes/Solved', np.mean(solved_episodes))
+            logger.logkv('Episodes/Length', np.mean(episode_length))
             logger.logkv('Intrinsic/Mean', np.mean(intrinsic_rewards))
             logger.logkv('Intrinsic/Median', np.median(intrinsic_rewards))
             logger.logkv('Intrinsic/Min', np.min(intrinsic_rewards))
@@ -223,7 +225,8 @@ if __name__ == '__main__':
                 logger.add_scalar('reward/median', np.median(extrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('reward/min', np.min(extrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('reward/max', np.max(extrinsic_rewards), total_steps, elapsed)
-                logger.add_scalar('reward/solved', np.max(solved_episodes), total_steps, elapsed)
+                logger.add_scalar('episode/solved', np.mean(solved_episodes), total_steps, elapsed)
+                logger.add_scalar('episode/length', np.mean(episode_length), total_steps, elapsed)
                 logger.add_scalar('intrinsic/mean', np.mean(intrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('intrinsic/median', np.median(intrinsic_rewards), total_steps, elapsed)
                 logger.add_scalar('intrinsic/min', np.min(intrinsic_rewards), total_steps, elapsed)
