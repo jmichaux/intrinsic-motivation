@@ -128,7 +128,7 @@ class PPO():
                 next_obs = (next_obs - obs)
             next_obs_preds = self.dynamics_model(obs, action)
             # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
-            return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
+            return 0.5 * ((next_obs_preds - next_obs) * self.rollouts.masks[step + 1]).pow(2).sum(-1).unsqueeze(-1)
 
     def update(self):
         tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v = self._update()
@@ -160,7 +160,7 @@ class PPO():
 
         # compute dynamics loss
         if self.add_intrinsic_reward:
-            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, next_obs_batch)
+            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, next_obs_batch, masks_batch)
         else:
             dynamics_loss = 0
 
@@ -173,9 +173,9 @@ class PPO():
 
         return total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl
 
-    def compute_dynamics_loss(self, obs, action, next_obs):
+    def compute_dynamics_loss(self, obs, action, next_obs, masks):
         next_obs_preds = self.dynamics_model(obs, action)
-        return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
+        return 0.5 * ((next_obs_preds - next_obs) * masks).pow(2).sum(-1).unsqueeze(-1).mean()
         # return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1).mean()
 
     def _update(self):
