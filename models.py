@@ -79,14 +79,3 @@ class FwdDyn(nn.Module):
     def forward(self, state, action):
         feature = torch.cat((state, action), -1)
         return self.base(feature)
-
-class MLP(nn.Module):
-    def __init__(self,
-                 num_inputs,
-                 hidden_sizes,
-                 num_outputs,
-                 hidden_init=None,
-                 hidden_activation=None,
-                 output_init=None,
-                 output_activation=None):
-        super(MLP, self).__init__()
