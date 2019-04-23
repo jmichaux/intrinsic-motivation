@@ -35,6 +35,11 @@ def create_log_dirs(exp_name, checkpoint=False, tbx=False, force_clean=False):
     # make tensorboard dir
     if tbx:
         os.makedirs(os.path.join(run_dir, 'tensorboard'))
+    # make eval dir
+    eval_dir = os.path.join(run_dir, 'eval')
+    os.makedirs(eval_dir)
+    os.makedirs(os.path.join(eval_dir, 'video'))
+    os.makedirs(os.path.join(eval_dir, 'monitor'))
     return run_dir
 
 def set_random_seeds(seed, cuda=True, debug=False):
