@@ -119,11 +119,6 @@ if __name__ == '__main__':
     agent.train()
     start = time.time()
 
-    extrinsic_rewards = deque(maxlen=100)
-    episode_length = deque(maxlen=100)
-    intrinsic_rewards = deque(maxlen=100)
-    solved_episodes = deque(maxlen=100)
-
     num_updates = int(args.num_env_steps // args.num_processes // args.num_steps)
 
     for update in range(num_updates):
@@ -144,6 +139,11 @@ if __name__ == '__main__':
                                              update=update,
                                              total_num_updates=num_updates,
                                              initial_lr=args.v_lr)
+
+        extrinsic_rewards = []
+        episode_length = []
+        intrinsic_rewards = []
+        solved_episodes = []
 
         for step in range(args.num_steps):
             # render
