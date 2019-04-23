@@ -65,6 +65,7 @@ if __name__ == '__main__':
     if args.log_dir is None:
         log_dir = utils.create_log_dirs("{}/{}".format(args.env_id, args.experiment_name),
                                         force_clean=args.clean_dir)
+        args.__dict__['log_dir'] = log_dir
     else:
         log_dir = args.log_dir
     logger.configure(log_dir, ['stdout', 'log', 'csv'], tbX=args.use_tensorboard)
