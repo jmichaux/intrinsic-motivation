@@ -28,6 +28,8 @@ parser.add_argument('--log-interval', type=int, default=1)
 parser.add_argument('--checkpoint-interval', type=int, default=20)
 parser.add_argument('--eval-interval', type=int, default=100)
 parser.add_argument('--add-intrinsic-reward', action='store_true')
+parser.add_argument('--intrinsic-coef', type=float, default=1.0)
+parser.add_argument('--max-intrinsic-reward', type=float, default=None)
 parser.add_argument('--num-env-steps', type=int, default=int(1e7))
 parser.add_argument('--num-processes', type=int, default=4)
 parser.add_argument('--num-steps', type=int, default=2048)
@@ -41,8 +43,7 @@ parser.add_argument('--hidden-size', type=int, default=128)
 parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
 parser.add_argument('--entropy-coef', type=float, default=0.01)
-parser.add_argument('--intrinsic-coef', type=float, default=0.02)
-parser.add_argument('--grad-norm-max', type=float, default=0.5)
+parser.add_argument('--grad-norm-max', type=float, default=5.0)
 parser.add_argument('--dyn-grad-norm-max', type=float, default=5)
 parser.add_argument('--gamma', type=float, default=0.9)
 parser.add_argument('--use-gae', action='store_true')
@@ -117,10 +118,6 @@ if __name__ == '__main__':
     agent.train()
     start = time.time()
 
-    # extrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
-    # intrinsic_rewards = deque(maxlen=args.num_steps * args.num_processes)
-    # solved_episodes = deque(maxlen=args.num_processes)
-
     extrinsic_rewards = deque(maxlen=100)
     episode_length = deque(maxlen=100)
     intrinsic_rewards = deque(maxlen=100)
@@ -160,8 +157,9 @@ if __name__ == '__main__':
 
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), -1, 1)
-                # intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
+                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
+                if args.max_intrinsic_reward is not None:
+                    intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), 0.0, args.max_intrinsic_reward)
             else:
                 intrinsic_reward = torch.tensor(0).view(1, 1)
             intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
