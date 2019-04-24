@@ -35,6 +35,7 @@ class PPO():
 
         # setup logging
         self.checkpoint_path = os.path.join(log_dir, 'checkpoint.pth')
+        self.checkpoint_path2 = os.path.join(log_dir, 'checkpoint2.pth')
 
         # ppo hyperparameters
         self.clip_param = clip_param
@@ -52,6 +53,10 @@ class PPO():
         self.grad_norm_max = grad_norm_max
         self.use_clipped_value_loss = use_clipped_value_loss
         self.add_intrinsic_reward = add_intrinsic_reward
+
+        # data normalization
+        self.obs_mean = None
+        self.obs_var = None
 
         # setup actor critic
         self.actor_critic = actor_critic(
@@ -130,7 +135,9 @@ class PPO():
             # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
             return 0.5 * ((next_obs_preds - next_obs) * self.rollouts.masks[step + 1]).pow(2).sum(-1).unsqueeze(-1)
 
-    def update(self):
+    def update(self, obs_mean, obs_var):
+        self.obs_mean = obs_mean
+        self.obs_var = obs_var
         tot_loss, pi_loss, v_loss, dyn_loss, ent, kl, delta_p, delta_v = self._update()
 
         self.rollouts.after_update()
@@ -258,10 +265,12 @@ class PPO():
         # create checkpoint dict
         checkpoint = {
             'share_optim': self.share_optim,
-            'add_intrinsic_reward': self.add_intrinsic_reward}
+            'add_intrinsic_reward': self.add_intrinsic_reward,
+            'obs_mean': self.obs_mean,
+            'obs_var': self.obs_var}
 
         # save models
-        checkpoint['actor_critic'] =  self.actor_critic.state_dict()
+        checkpoint['actor_critic'] = self.actor_critic.state_dict()
         if self.add_intrinsic_reward:
             checkpoint['dynamics_model'] = self.dynamics_model.state_dict()
 
@@ -277,6 +286,7 @@ class PPO():
 
         if path is None:
             torch.save(checkpoint, self.checkpoint_path)
+            torch.save(self.actor_critic, self.checkpoint_path2)
         else:
             torch.save(checkpoint, path)
 
@@ -285,6 +295,8 @@ class PPO():
         checkpoint = torch.load(path)
         self.share_optim = checkpoint['share_optim']
         self.add_intrinsic_reward = checkpoint['add_intrinsic_reward']
+        self.obs_mean = checkpoint['obs_mean']
+        self.obs_var = checkpoint['obs_var']
 
         # load models
         self.actor_critic.load_state_dict(checkpoint['actor_critic'])
