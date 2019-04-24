@@ -181,7 +181,7 @@ if __name__ == '__main__':
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
 
         # update policy and value_fn, reset rollout storage
-        tot_loss, pi_loss, v_loss, dyn_loss, entropy, kl, delta_p, delta_v =  agent.update()
+        tot_loss, pi_loss, v_loss, dyn_loss, entropy, kl, delta_p, delta_v =  agent.update(obs_mean=obs[2], obs_var=obs[3])
 
         # log data
         if update % args.log_interval == 0:
