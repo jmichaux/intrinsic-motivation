@@ -71,9 +71,7 @@ class Rollouts(object):
         self.masks[0].copy_(self.masks[-1])
 
     def compute_returns(self, next_value, gamma=0.99, use_gae=True, gae_lambda=0.95):
-        """
-        # TODO: Maybe set default values for use_gae and gae_lambda
-        """
+
         if use_gae:
             self.value_preds[-1] = next_value
             gae = 0
@@ -134,14 +132,7 @@ class Rollouts(object):
 
             yield obs_batch, actions_batch, next_obs_batch
 
-    def recurrent_generator(self, advantages, num_mini_batch):
-        pass
-
 class MultimodalRollouts(Rollouts):
-    """
-    It might make more sense to rethink this whole thing. Also, this won't work if
-    we wanted to use images or some other feature for planning
-    """
     def __init__(self, num_steps, num_processes,
                  obs_shape, action_space, im_shape, depth_shape, contact_shape,
                  device=None, use_gae=False):
