@@ -132,8 +132,7 @@ class PPO():
             if predict_delta_obs:
                 next_obs = (next_obs - obs)
             next_obs_preds = self.dynamics_model(obs, action)
-            # return 0.5 * self.eta * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).pow(2).unsqueeze(-1)
-            return 0.5 * ((next_obs_preds - next_obs) * self.rollouts.masks[step + 1]).pow(2).sum(-1).unsqueeze(-1)
+            return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
 
     def update(self, obs_mean, obs_var):
         self.obs_mean = obs_mean
@@ -182,8 +181,7 @@ class PPO():
 
     def compute_dynamics_loss(self, obs, action, next_obs, masks):
         next_obs_preds = self.dynamics_model(obs, action)
-        return 0.5 * ((next_obs_preds - next_obs) * masks).pow(2).sum(-1).unsqueeze(-1).mean()
-        # return 0.5 * torch.norm(next_obs - next_obs_preds, p=2, dim=-1).unsqueeze(-1).mean()
+        return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
 
     def _update(self):
         # compute and normalize advantages
