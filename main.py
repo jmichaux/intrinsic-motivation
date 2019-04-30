@@ -80,8 +80,14 @@ if __name__ == '__main__':
     utils.set_random_seeds(args.seed, args.cuda, args.debug)
 
     # setup environment
-    envs = make_vec_envs(args.env_id, args.seed, args.num_processes,
-                         None, log_dir, device, False)
+    envs = make_vec_envs(env_id=args.env_id,
+                         seed=args.seed,
+                         num_processes=args.num_processes,
+                         gamma=None,
+                         log_dir=log_dir,
+                         device=device,
+                         obs_keys=['observation', 'desired_goal'],
+                         allow_early_resets=False)
 
     # create agent
     agent = PPO(log_dir,
