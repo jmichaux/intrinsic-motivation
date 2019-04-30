@@ -38,7 +38,7 @@ parser.add_argument('--dyn-epochs', type=int, default=5)
 parser.add_argument('--num-mini-batch', type=int, default=32)
 parser.add_argument('--pi-lr', type=float, default=1e-4)
 parser.add_argument('--v-lr', type=float, default=1e-3)
-parser.add_argument('--dyn-lr', type=float, default=1e-3)
+parser.add_argument('--dyn-lr', type=float, default=1e-4)
 parser.add_argument('--hidden-size', type=int, default=128)
 parser.add_argument('--clip-param', type=float, default=0.3)
 parser.add_argument('--value-coef', type=float, default=0.5)
@@ -80,8 +80,14 @@ if __name__ == '__main__':
     utils.set_random_seeds(args.seed, args.cuda, args.debug)
 
     # setup environment
-    envs = make_vec_envs(args.env_id, args.seed, args.num_processes,
-                         None, log_dir, device, False)
+    envs = make_vec_envs(env_id=args.env_id,
+                         seed=args.seed,
+                         num_processes=args.num_processes,
+                         gamma=None,
+                         log_dir=log_dir,
+                         device=device,
+                         obs_keys=['observation', 'desired_goal'],
+                         allow_early_resets=False)
 
     # create agent
     agent = PPO(log_dir,
@@ -156,9 +162,19 @@ if __name__ == '__main__':
             # take a step in the environment
             obs, reward, done, infos = envs.step(action)
 
+            # get final episode rewards
+            successes = torch.ones(args.num_processes).unsqueeze(-1)
+            for j, info in enumerate(infos):
+                if 'episode' in info.keys():
+                    extrinsic_rewards.append(info['episode']['r'])
+                    episode_length.append(info['episode']['l'])
+                    solved_episodes.append(info['is_success'])
+                    if not info['is_success']:
+                        successes[j] = 0.
+
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
+                intrinsic_reward = args.intrinsic_coef * successes * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
                 if args.max_intrinsic_reward is not None:
                     intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), 0.0, args.max_intrinsic_reward)
             else:
@@ -169,13 +185,6 @@ if __name__ == '__main__':
             agent.store_rollout(obs[1], action, action_log_probs,
                                 value, reward, intrinsic_reward,
                                 done)
-
-            # get final episode rewards
-            for info in infos:
-                if 'episode' in info.keys():
-                    extrinsic_rewards.append(info['episode']['r'])
-                    episode_length.append(info['episode']['l'])
-                    solved_episodes.append(info['is_success'])
 
         # compute returns
         agent.compute_returns(args.gamma, args.use_gae, args.gae_lambda)
