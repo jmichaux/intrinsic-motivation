@@ -15,18 +15,4 @@ cd multimodal-curiosity
 pip install -e .
 ``` 
 
- # Project Milestones
- - [ ] Modify gym environments
- 	- [x] Modify gym environments to return images and depth map
- 	- [x] Modify orientation of additional cameras
- 	- [ ] Return contact forces for the gripper
- - [ ] Implement PPO algorithm
-	- [x] Implement Multimodal rollout container
- 	- [x] Implement PPO agent with FF policy
- 	- [ ] Add Recurrent policy to PPO agent
- - [ ] Setup logging for the project
- - [ ] Setup the intrinsic curiosity Module
-    - [ ] Forward Dynamics Model
-    - [ ] Inverse Dynamics Model
-    - [ ] VAE
-    - [ ] Random CNN network
+
