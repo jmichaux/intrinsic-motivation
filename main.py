@@ -53,6 +53,7 @@ parser.add_argument('--share-optim', action='store_true')
 parser.add_argument('--predict-delta-obs', action='store_true')
 parser.add_argument('--use-linear-lr-decay', action='store_true')
 parser.add_argument('--use-clipped-value-loss', action='store_true')
+parser.add_argument('--save-learning-progress', action='store_true')
 parser.add_argument('--use-tensorboard', action='store_true')
 parser.add_argument('--cuda', action='store_false', default=True, help='enables CUDA training')
 parser.add_argument('--debug', action='store_true')
@@ -286,3 +287,15 @@ if __name__ == '__main__':
             # checkpoint model
             if (update + 1) % args.checkpoint_interval == 0:
                 agent.save_checkpoint()
+
+            # save learning progress
+            if args.save_learning_progress:
+                percentiles = [10 * i for i in range(11)]
+
+                for i, _ in enumerate(percentiles[:-1]):
+                    if 100 * np.mean(solved_episodes) >= percentiles[i] and 100 * np.mean(solved_episodes) < percentiles[i+1]:
+                        path = os.path.join(log_dir, 'checkpoint_{}.pth'.format(percentiles[i]))
+                        if os.path.isfile(path):
+                            pass
+                        else:
+                            agent.save_checkpoint(path)
