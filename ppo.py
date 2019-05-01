@@ -35,7 +35,6 @@ class PPO():
 
         # setup logging
         self.checkpoint_path = os.path.join(log_dir, 'checkpoint.pth')
-        self.checkpoint_path2 = os.path.join(log_dir, 'checkpoint2.pth')
 
         # ppo hyperparameters
         self.clip_param = clip_param
@@ -284,7 +283,6 @@ class PPO():
 
         if path is None:
             torch.save(checkpoint, self.checkpoint_path)
-            torch.save(self.actor_critic, self.checkpoint_path2)
         else:
             torch.save(checkpoint, path)
 
