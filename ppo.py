@@ -71,7 +71,7 @@ class PPO():
             dynamics_dim = observation_space.shape[0] + action_space.shape[0]
             self.dynamics_model = dynamics_model(num_inputs=dynamics_dim,
                                                  hidden_size=hidden_size,
-                                                 num_outputs=observation_space.shape[0])
+                                                 num_outputs=observation_space.shape[0] - contact_shape[0])
             self.dynamics_model.to(device)
 
         # setup optimizers
@@ -129,7 +129,7 @@ class PPO():
     def compute_intrinsic_reward(self, step, predict_delta_obs=False):
         with torch.no_grad():
             obs = self.rollouts.obs[step]
-            contact = self.rollouts.contact[step]
+            contact = self.rollouts.contacts[step]
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
             if predict_delta_obs:
@@ -169,7 +169,7 @@ class PPO():
 
         # compute dynamics loss
         if self.add_intrinsic_reward:
-            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, contact_batch)
+            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, next_obs_batch, contacts_batch)
         else:
             dynamics_loss = 0
 
@@ -182,7 +182,7 @@ class PPO():
 
         return total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl
 
-    def compute_dynamics_loss(self, obs, action, contact):
+    def compute_dynamics_loss(self, obs, action, next_obs, contact):
         next_obs_preds = self.dynamics_model(obs, action, contact)
         return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
 
