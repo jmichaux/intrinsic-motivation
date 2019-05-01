@@ -10,6 +10,7 @@ class PPO():
                  log_dir,
                  observation_space,
                  action_space,
+                 contact_shape,
                  actor_critic,
                  dynamics_model,
                  optimizer=optim.Adam,
@@ -60,7 +61,7 @@ class PPO():
 
         # setup actor critic
         self.actor_critic = actor_critic(
-            num_inputs=observation_space.shape[0],
+            num_inputs=observation_space.shape[0] - contact_shape[0],
             hidden_size=hidden_size,
             num_outputs=action_space.shape[0])
         self.actor_critic.to(device)
@@ -88,8 +89,9 @@ class PPO():
 
         # create rollout storage
         self.rollouts = Rollouts(num_steps, num_processes,
-                                 observation_space.shape,
+                                 (observation_space.shape[0] - contact_shape[0], ),
                                  action_space,
+                                 contact_shape,
                                  device)
 
     def train(self):
@@ -113,9 +115,9 @@ class PPO():
         with torch.no_grad():
             return self.actor_critic.get_value(obs)
 
-    def store_rollout(self, obs, action, action_log_probs, value, reward, intrinsic_reward, done):
+    def store_rollout(self, obs, contact, action, action_log_probs, value, reward, intrinsic_reward, done):
         masks = torch.tensor(1.0 - done.astype(np.float32)).view(-1, 1)
-        self.rollouts.insert(obs, action, action_log_probs, value, reward, intrinsic_reward, masks)
+        self.rollouts.insert(obs, contact, action, action_log_probs, value, reward, intrinsic_reward, masks)
 
     def compute_returns(self, gamma, use_gae=True, gae_lambda=0.95):
         with torch.no_grad():
@@ -127,11 +129,12 @@ class PPO():
     def compute_intrinsic_reward(self, step, predict_delta_obs=False):
         with torch.no_grad():
             obs = self.rollouts.obs[step]
+            contact = self.rollouts.contact[step]
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
             if predict_delta_obs:
                 next_obs = (next_obs - obs)
-            next_obs_preds = self.dynamics_model(obs, action)
+            next_obs_preds = self.dynamics_model(obs, action, contact)
             return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
 
     def update(self, obs_mean, obs_var):
@@ -144,7 +147,7 @@ class PPO():
 
     def compute_loss(self, sample):
         # get sample batch
-        obs_batch, actions_batch, next_obs_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target = sample
+        obs_batch, contacts_batch, actions_batch, next_obs_batch, value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_target = sample
 
         # evaluate actions
         values, action_log_probs, entropy = self.actor_critic.evaluate_action(obs_batch, actions_batch)
@@ -166,7 +169,7 @@ class PPO():
 
         # compute dynamics loss
         if self.add_intrinsic_reward:
-            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, next_obs_batch, masks_batch)
+            dynamics_loss = self.compute_dynamics_loss(obs_batch, actions_batch, contact_batch)
         else:
             dynamics_loss = 0
 
@@ -179,8 +182,8 @@ class PPO():
 
         return total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl
 
-    def compute_dynamics_loss(self, obs, action, next_obs, masks):
-        next_obs_preds = self.dynamics_model(obs, action)
+    def compute_dynamics_loss(self, obs, action, contact):
+        next_obs_preds = self.dynamics_model(obs, action, contact)
         return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
 
     def _update(self):

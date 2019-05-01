@@ -72,6 +72,6 @@ class FwdDyn(nn.Module):
             init_relu(nn.Linear(hidden_size, hidden_size)), nn.ReLU(),
             init_tanh(nn.Linear(hidden_size, num_outputs)), nn.Tanh())
 
-    def forward(self, state, action):
-        feature = torch.cat((state, action), -1)
+    def forward(self, state, action, contact):
+        feature = torch.cat((state, action, contact), -1)
         return self.base(feature)
