@@ -122,10 +122,8 @@ if __name__ == '__main__':
 
     # reset envs and initialize rollouts
     obs = envs.reset()
-    contact = obs[1][:, -contact_shape[0]:]
-    obs = obs[1][:, :-contact_shape[0]]
-    agent.rollouts.obs[0].copy_(obs)
-    agent.rollouts.contacts[0].copy_(contact)
+    agent.rollouts.obs[0].copy_(obs[1][:, :-contact_shape[0]])
+    agent.rollouts.contacts[0].copy_(obs[1][:, -contact_shape[0]:])
     agent.rollouts.to(device)
 
     # start training
@@ -169,9 +167,6 @@ if __name__ == '__main__':
             # take a step in the environment
             obs, reward, done, infos = envs.step(action)
 
-            contact = obs[1][:, -contact_shape[0]:]
-            obs = obs[1][:, :-contact_shape[0]]
-
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
                 intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
@@ -182,7 +177,9 @@ if __name__ == '__main__':
             intrinsic_rewards.extend(list(intrinsic_reward.numpy().reshape(-1)))
 
             # store experience
-            agent.store_rollout(obs, contact, action, action_log_probs,
+            agent.store_rollout(obs[1][:, :-contact_shape[0]],
+                                obs[1][:, -contact_shape[0]:],
+                                action, action_log_probs,
                                 value, reward, intrinsic_reward, done)
 
             # get final episode rewards
