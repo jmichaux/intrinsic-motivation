@@ -29,6 +29,7 @@ class PPO():
                  use_clipped_value_loss=True,
                  use_tensorboard=True,
                  add_intrinsic_reward=False,
+                 predict_delta_obs=False,
                  device='cpu',
                  share_optim=False,
                  debug=False):
@@ -53,6 +54,7 @@ class PPO():
         self.grad_norm_max = grad_norm_max
         self.use_clipped_value_loss = use_clipped_value_loss
         self.add_intrinsic_reward = add_intrinsic_reward
+        self.predict_delta_obs = predict_delta_obs
 
         # data normalization
         self.obs_mean = None
@@ -124,12 +126,12 @@ class PPO():
             self.rollouts.rewards += self.rollouts.intrinsic_rewards
         self.rollouts.compute_returns(next_value, gamma, use_gae, gae_lambda)
 
-    def compute_intrinsic_reward(self, step, predict_delta_obs=False):
+    def compute_intrinsic_reward(self, step):
         with torch.no_grad():
             obs = self.rollouts.obs[step]
             action = self.rollouts.actions[step]
             next_obs = self.rollouts.obs[step + 1]
-            if predict_delta_obs:
+            if self.predict_delta_obs:
                 next_obs = (next_obs - obs)
             next_obs_preds = self.dynamics_model(obs, action)
             return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1)
@@ -180,6 +182,8 @@ class PPO():
         return total_loss, policy_loss, value_loss, dynamics_loss, entropy, kl
 
     def compute_dynamics_loss(self, obs, action, next_obs, masks):
+        if self.predict_delta_obs:
+            next_obs = (next_obs - obs)
         next_obs_preds = self.dynamics_model(obs, action)
         return 0.5 * (next_obs_preds - next_obs).pow(2).sum(-1).unsqueeze(-1).mean()
 

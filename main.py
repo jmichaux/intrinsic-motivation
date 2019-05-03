@@ -111,6 +111,7 @@ if __name__ == '__main__':
                 use_clipped_value_loss=True,
                 use_tensorboard=args.use_tensorboard,
                 add_intrinsic_reward=args.add_intrinsic_reward,
+                predict_delta_obs=args.predict_delta_obs,
                 device=device,
                 share_optim=args.share_optim,
                 debug=args.debug)
@@ -164,7 +165,7 @@ if __name__ == '__main__':
 
             # calculate intrinsic reward
             if args.add_intrinsic_reward:
-                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step, args.predict_delta_obs)
+                intrinsic_reward = args.intrinsic_coef * agent.compute_intrinsic_reward(step)
                 if args.max_intrinsic_reward is not None:
                     intrinsic_reward = torch.clamp(agent.compute_intrinsic_reward(step), 0.0, args.max_intrinsic_reward)
             else:
