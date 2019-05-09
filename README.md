@@ -7,7 +7,7 @@ This project uses Python 3 and has the following dependencies:
  * [`OpenAI Gym`](https://github.com/openai/gym)
  * [`OpenAI baselines`](https://github.com/openai/baselines)
  
- ## Instal `intrinsic-movitation`
+ ## Installation
 After installing the dependencies, clone and install this repo:
 
  git clone https://github.com/jmichaux/multimodal-curiosity.git
