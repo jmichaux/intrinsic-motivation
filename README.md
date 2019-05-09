@@ -10,5 +10,6 @@ This project uses Python 3 and has the following dependencies:
 
 ## Using this code
 After installing the dependencies, clone this repo:
+
     git clone https://github.com/jmichaux/intrinsic-motivation.git
     
