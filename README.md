@@ -1,4 +1,4 @@
- # Multi-modal Intrinsic Motivation for Robotic Exploration
+ # Intrinsic Motivation for Robotic Exploration
 
 
  ## Requirements
