@@ -14,3 +14,6 @@ After installing the dependencies, clone this repo:
 
     git clone https://github.com/jmichaux/intrinsic-motivation.git
     
+## Disclaimer
+I'm still cleaning the code up, so please be patient :)
+    
