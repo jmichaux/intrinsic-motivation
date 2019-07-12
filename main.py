@@ -13,8 +13,8 @@ import torch.optim as optim
 
 from models import ActorCritic, FwdDyn
 from ppo import PPO
-import multimodal_envs
-from multimodal_envs.wrappers import make_vec_envs
+import gym_fetch
+from gym_fetch.wrappers import make_vec_envs
 import utils
 import logger
 
